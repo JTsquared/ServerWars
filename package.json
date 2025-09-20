@@ -1,0 +1,15 @@
+{
+    "name": "discord-war-game",
+    "version": "1.0.0",
+    "main": "src/bot.js",
+    "type": "module",
+    "scripts": {
+      "start": "node src/bot.js"
+    },
+    "dependencies": {
+      "discord.js": "^14.15.3",
+      "mongoose": "^8.3.0",
+      "dotenv": "^16.4.0"
+    }
+  }
+  
