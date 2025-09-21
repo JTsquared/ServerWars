@@ -30,12 +30,8 @@ export async function execute(interaction) {
   }
 
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
-
-  // Sum oil from owned tiles
   const ownedTiles = await Tile.find({ "city.exists": true, "city.owner": nation.serverId });
-  const totalOilBonus = ownedTiles.reduce((sum, t) => sum + (t.resources?.oil || 0), 0);
-  const baseYield = 1 + totalOilBonus;
-  const oilYield = getResourceYield(player.exp.economist, economistTiers, baseYield);
+  const oilYield = getResourceYield(player.exp.economist, economistTiers, nation, "oil", ownedTiles);
   nation.resources.oil = (nation.resources.oil || 0) + oilYield;
 
   setResourceCooldown(player);

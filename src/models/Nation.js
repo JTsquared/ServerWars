@@ -24,7 +24,12 @@ const nationSchema = new mongoose.Schema({
     mine: { type: Number, default: 0 },
     barracks: { type: Number, default: 0 },
     oilrig: { type: Number, default: 0 },
-    city: { type: Number, default: 1 }
+    city: { type: Number, default: 1 },
+    bank: { type: Number, default: 0 },
+    hangar: { type: Number, default: 0 },
+    factory: { type: Number, default: 0 },
+    depot: { type: Number, default: 0 },
+    mickdonalds: { type: Number, default: 0 }
   },
 
   research: {
@@ -32,7 +37,10 @@ const nationSchema = new mongoose.Schema({
     flight: { type: Boolean, default: false },
     happy_meals: { type: Boolean, default: false },
     banking: { type: Boolean, default: false },
-    shit_coins: { type: Boolean, default: false }
+    shit_coins: { type: Boolean, default: false },
+    industrialization: { type: Boolean, default: false },
+    military_training: { type: Boolean, default: false },
+    oil_drilling: { type: Boolean, default: false }
   },
 
   leadership: {
@@ -49,6 +57,11 @@ const nationSchema = new mongoose.Schema({
       name: String
     }
   ],
+
+  cooldowns: {
+    launchshitcoin: { type: Number, default: 0 },
+    spy: { type: Number, default: 0 }
+  },
 
   playerCount: { type: Number, default: 0 }
 }, { timestamps: true });

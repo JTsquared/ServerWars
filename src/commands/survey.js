@@ -51,12 +51,13 @@ export async function execute(interaction) {
   const tileId = availableIds[Math.floor(Math.random() * availableIds.length)];
 
   // Generate tile properties
-  let fertilityBase = Math.floor(Math.random() * 2); // 0-1
+  let fertilityBase = Math.random() < 0.25 ? 0 : 1; 
+  console.log('fertilityBase: ' + fertilityBase);
   let extraResource = Math.random() < 0.2; // 20% chance for extra resources
   const tile = new Tile({
     tileId,
     resources: {
-      fertility: fertilityBase + (extraResource ? Math.floor(Math.random() * 5) : 0),
+      fertility: fertilityBase + (extraResource ? Math.floor(Math.random() * 4) : 0),
       steel: extraResource ? Math.floor(Math.random() * 5) : 0,
       gold: extraResource ? Math.floor(Math.random() * 5) : 0,
       oil: extraResource ? Math.floor(Math.random() * 5) : 0,
@@ -73,11 +74,11 @@ export async function execute(interaction) {
 
   const remainingUnsurveyed = unsurveyedCount > 0 ? unsurveyedCount - 1 : 0;
 
-  let reply = `🧭 Your nation surveyed a new tile!  
-  Tile ID: **${tileId}**  
-  ${extraResource ? `Extra resources found: Food ${resources.fertility}, Steel ${resources.steel}, Gold ${resources.gold}, Oil ${resources.oil}` : "No extra resources found."}\n` +
-  `Unsurveyed tiles remaining: **${remainingUnsurveyed}**` +
-  `+${EXP_GAIN.SCOUT} Scout EXP (Current: ${player.exp.explorer})`;
+  let reply = `🧭 Your nation surveyed a new tile!` +
+  `\nTile ID: **${tileId}**\n` +  
+  `Tile resources: Food: ${tile.resources.fertility}, Steel: ${tile.resources.steel}, Gold: ${tile.resources.gold}, Oil: ${tile.resources.oil}` +
+  `\nUnsurveyed tiles remaining: **${remainingUnsurveyed}**` +
+  `\n+${EXP_GAIN.SCOUT} Scout EXP (Current: ${player.exp.scout})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;
   
   await interaction.reply(reply);

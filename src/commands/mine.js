@@ -35,28 +35,13 @@ export async function execute(interaction) {
 
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
 
-  // Get owned tiles
   const ownedTiles = await Tile.find({ "city.exists": true, "city.owner": nation.serverId });
+  const steelYield = getResourceYield(player.exp.economist, economistTiers, nation, "steel", ownedTiles);
+  const goldYield = getResourceYield(player.exp.economist, economistTiers, nation, "gold", ownedTiles);
 
-  // Tile bonuses
-  const totalSteelBonus = ownedTiles.reduce((sum, t) => sum + (t.resources?.steel || 0), 0);
-  const totalGoldBonus = ownedTiles.reduce((sum, t) => sum + (t.resources?.gold || 0), 0);
-
-  // Base yields
-  const steelBase = 1 + totalSteelBonus;
-  const goldBase = 1 + totalGoldBonus;
-
-  // Final yields
-  const steelYield = getResourceYield(player.exp.economist, economistTiers, steelBase);
-  const goldYield = getResourceYield(player.exp.economist, economistTiers, goldBase);
-
-  // Add to nation
-  console.log("steelYield", steelYield);
-  console.log("goldYield", goldYield);
   nation.resources.steel = (nation.resources.steel ?? 0) + steelYield;
   nation.resources.gold = (nation.resources.gold ?? 0) + goldYield;
 
-  // Save and cooldown
   setResourceCooldown(player);
   console.log("/mine nation.steel", nation.resources.steel);
   await Promise.all([saveUser(player), saveNation(nation)]);

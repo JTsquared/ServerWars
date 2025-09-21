@@ -29,7 +29,6 @@ export async function execute(interaction) {
     output += `🏗️ Buildings → Cities: ${r.buildings.city}, Barracks: ${r.buildings.barracks}, Factories: ${r.buildings.factory}, Airbases: ${r.buildings.airbase}\n\n`;
   }
 
-  // Discord 2000 char safety
   if (output.length > 2000) {
     output = output.slice(0, 1990) + "...";
   }

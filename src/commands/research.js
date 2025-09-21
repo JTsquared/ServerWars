@@ -35,7 +35,8 @@ export const data = new SlashCommandBuilder()
     }
   
     // Map RESEARCH key to schema field
-    const schemaField = field.toLowerCase();
+    const schemaField = RESEARCH[field]?.dbname;
+    console.log("Schema Field:", schemaField);
   
     if (nation.research[schemaField]) {
       return interaction.reply(`You have already completed **${RESEARCH[field].name}** research.`);
@@ -61,6 +62,6 @@ export const data = new SlashCommandBuilder()
     await nation.save();
   
     return interaction.reply(
-      `✅ Research completed: **${field}**!\n${RESEARCH[field].name}`
+      `✅ Research completed: **${RESEARCH[field].name}** research`
     );
   }

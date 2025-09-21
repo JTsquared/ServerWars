@@ -43,8 +43,7 @@ export async function execute(interaction) {
   // Find nations not yet discovered by this nation
   const discoveredIds = nation.discoveredNations.map(d => d.serverId);
   const undiscoveredNations = await Nation.find({
-    serverId: { $ne: nation.serverId },
-    serverId: { $nin: discoveredIds }
+    serverId: { $ne: nation.serverId, $nin: discoveredIds }
   });
   const numUndiscovered = undiscoveredNations.length;
 

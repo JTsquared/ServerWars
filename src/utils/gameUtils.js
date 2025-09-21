@@ -2,6 +2,7 @@ import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../dat
 import { COOLDOWN_MS } from "./constants.js";
 import Nation from "../models/Nation.js";
 import Config from "../models/Config.js";
+import { BUILDINGS } from "./constants.js";
 
 // export const COOLDOWN_MS = 1000 * 60 * 60; // 1 hour global for resource commands
 //export const COOLDOWN_MS = 1000 * 5; // 1 minute global for resource commands
@@ -15,12 +16,82 @@ export function getTier(exp, tiers) {
   return role;
 }
 
-export function getResourceYield(exp, tiers) {
-  let level = 0;
-  for (let i = 0; i < tiers.length; i++) {
-    if (exp >= tiers[i].exp) level = i;
+export function getTiersForPath(path) {
+  switch (path) {
+    case "military": return militaryTiers;
+    case "economist": return economistTiers;
+    case "scout": return scoutTiers;
+    case "diplomat": return diplomatTiers;
+    default: return [];
   }
-  return 1 + level; // base 1 + 1 per rank
+}
+
+export function capitalize(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+export function getResourceYield(exp, tiers, nation, resource, ownedTiles, baseRate = 1) {
+
+  const isNaturalResource = resource in (nation.resources || {});
+  const landBonus = isNaturalResource ? ownedTiles.reduce((sum, t) => sum + (t.resources?.[resource] || 0), 0) : 0;
+
+  let experienceBonus = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    if (exp >= tiers[i].exp) experienceBonus = i;
+  }
+
+  console.log('resource: ', resource);
+  const buildingBonus = getBuildingBonus(nation, resource);
+  console.log(`getResourceYield: baseRate=${baseRate}, landBonus=${landBonus}, experienceBonus=${experienceBonus}, buildingBonus=${buildingBonus}`);
+
+  return baseRate + landBonus + experienceBonus + buildingBonus;
+}
+
+export function getBuildingBonus(nation, resource) {
+  if (!nation.buildings) return 0;
+
+  let bonus = 0;
+
+  const BUILDINGS_BY_DBNAME = Object.fromEntries(
+    Object.values(BUILDINGS).map(b => [b.dbname, b])
+  );
+
+  for (const [buildingKey, count] of Object.entries(nation.buildings)) {
+    if (count <= 0) continue;
+
+    // Find the buildingDef whose dbname matches the schema key
+    const buildingDef = BUILDINGS_BY_DBNAME[buildingKey];
+    // const buildingDef = Object.values(BUILDINGS).find(
+    //   b => b.dbname === buildingKey
+    // );
+    if (!buildingDef) continue;
+
+    switch (resource) {
+      case "steel":
+        if (buildingDef.dbname === "factory") bonus += buildingDef.bonus * count;
+        break;
+      case "gold":
+        if (buildingDef.dbname === "bank") bonus += buildingDef.bonus * count;
+        break;
+      case "food":
+        if (buildingDef.dbname === "mickdonalds") bonus += buildingDef.bonus * count;
+        break;
+      case "oil":
+        if (buildingDef.dbname === "oilrig") bonus += buildingDef.bonus * count;
+        break;
+      case "troops":
+        if (buildingDef.dbname === "barracks") bonus += buildingDef.bonus * count;
+        break;
+      case "tanks":
+        if (buildingDef.dbname === "depot") bonus += buildingDef.bonus * count;
+        break;
+      case "jets":
+        if (buildingDef.dbname === "hangar") bonus += buildingDef.bonus * count;
+        break;
+    }
+  }
+
+  return bonus;
 }
 
 export function secondsLeftOnResourceCooldown(userDoc) {
@@ -41,6 +112,20 @@ export function setResourceCooldown(userData) {
     userData.lastResourceAction = Date.now();
 }
 
+export function getNationalCooldownTime(nation, action, cooldownMs) {
+  const now = Date.now();
+  const lastUsed = nation.cooldowns?.[action] || 0;
+  const expiresAt = lastUsed + cooldownMs;
+  const timeLeft = expiresAt - now;
+
+  return timeLeft > 0 ? Math.ceil(timeLeft / 1000) : 0;
+}
+
+export function setNationCooldown(nation, action) {
+  if (!nation.cooldowns) nation.cooldowns = {};
+  nation.cooldowns[action] = Date.now();
+}
+
 /**
  * Grants EXP to a player and recalculates their role.
  * 
@@ -52,32 +137,23 @@ export function setResourceCooldown(userData) {
 
 export async function grantExp(player, path, amount, nation) {
   const messages = [];
-  const oldRole = player.role;
+
+  // Get tiers and old tier title
+  const tiers = getTiersForPath(path);
+  const oldTier = getTier(player.exp[path] || 0, tiers);
 
   // Apply EXP
   player.exp[path] = (player.exp[path] || 0) + amount;
 
-  // Determine dominant path
-  const paths = [
-    { key: "military", exp: player.exp.military || 0, tiers: militaryTiers },
-    { key: "economist", exp: player.exp.economist || 0, tiers: economistTiers },
-    { key: "scout", exp: player.exp.scout || 0, tiers: scoutTiers },
-    { key: "diplomat", exp: player.exp.diplomat || 0, tiers: diplomatTiers },
-  ];
-  const topPath = paths.reduce((max, curr) => (curr.exp > max.exp ? curr : max));
-  player.role = getTier(topPath.exp, topPath.tiers);
+  // Get new tier title
+  const newTier = getTier(player.exp[path], tiers);
 
-  // Check for rank-up
-  if (player.role !== oldRole) {
-    messages.push(`🎖️ You ranked up to **${player.role}**!`);
+  // Announce personal rank up (only in this EXP path)
+  if (newTier !== oldTier) {
+    messages.push(`🎖️ You ranked up to **${newTier}** in the **${capitalize(path)}** path!`);
   }
 
-  // Load config for role ping
-  const config = await Config.findOne({ serverId: nation.serverId });
-
-  // Leadership checks
-  const ping = config?.playerRoleId ? `<@&${config.playerRoleId}> ` : "";
-
+  // Leadership Role Check (based on the path used)
   switch (path) {
     case "military": {
       const current = nation.leadership.commanderInChief;
@@ -86,20 +162,19 @@ export async function grantExp(player, path, amount, nation) {
           userId: player.userId,
           exp: player.exp.military,
         };
-        messages.push(`${ping}<@${player.userId}> is now the **Commander in Chief** of ${nation.name}!`);
+        messages.push(`🪖 <@${player.userId}> is now the **Commander in Chief** of ${nation.name}!`);
       }
       break;
     }
 
     case "economist": {
       const current = nation.leadership.financeMinister;
-      // Only assign if no one holds it OR a different player has less exp
       if (!current?.userId || (player.userId !== current.userId && player.exp.economist > current.exp)) {
         nation.leadership.financeMinister = {
           userId: player.userId,
           exp: player.exp.economist,
         };
-        messages.push(`${ping}<@${player.userId}> is now the **Finance Minister** of ${nation.name}!`);
+        messages.push(`💰 <@${player.userId}> is now the **Finance Minister** of ${nation.name}!`);
       }
       break;
     }
@@ -111,11 +186,11 @@ export async function grantExp(player, path, amount, nation) {
           userId: player.userId,
           exp: player.exp.scout,
         };
-        messages.push(`${ping}<@${player.userId}> is now the **Chief Scout** of ${nation.name}!`);
+        messages.push(`🧭 <@${player.userId}> is now the **Chief Scout** of ${nation.name}!`);
       }
       break;
     }
-    
+
     case "diplomat": {
       const current = nation.leadership.foreignMinister;
       if (!current?.userId || (player.userId !== current.userId && player.exp.diplomat > current.exp)) {
@@ -123,7 +198,7 @@ export async function grantExp(player, path, amount, nation) {
           userId: player.userId,
           exp: player.exp.diplomat,
         };
-        messages.push(`${ping}<@${player.userId}> is now the **Foreign Minister** of ${nation.name}!`);
+        messages.push(`🕊️ <@${player.userId}> is now the **Foreign Minister** of ${nation.name}!`);
       }
       break;
     }
@@ -131,4 +206,5 @@ export async function grantExp(player, path, amount, nation) {
 
   return messages.length ? messages.join("\n") : null;
 }
+
 

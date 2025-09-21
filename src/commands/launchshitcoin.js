@@ -2,7 +2,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
-import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
+import { canUseResourceCommand, getNationalCooldownTime, setResourceCooldown, setNationCooldown, grantExp } from "../utils/gameUtils.js";
 import { EXP_GAIN, RESEARCH } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
@@ -28,13 +28,24 @@ export async function execute(interaction) {
   const isInternalMinister = nation.leadership.financeMinister.userId === interaction.user.id;
   
   if (!hasDiscordRole && !isInternalMinister) {
-    return interaction.reply("🚫 Only the **Finance Minister** or someone with the Treasury role may sell the nation's resources.");
+    return interaction.reply("🚫 Only the **Finance Minister** or someone with the Treasury role may use the Nation's gold.");
   }
 
-  // Cooldown check (extended 4h)
-  if (!canUseResourceCommand(player, "launchshitcoin", 4 * 60 * 60 * 1000)) {
+  if (!canUseResourceCommand(player)) {
     return interaction.reply({
-      content: "⏳ You must wait before attempting to launch another shitcoin.",
+      content: "⏳ You must wait before using another resource command.",
+      ephemeral: true,
+    });
+  }
+
+  const shitcoin_cooldown = parseInt(process.env.SHITCOIN_COOLDOWN_MS || "14400000", 10);
+  const secondsLeft = getNationalCooldownTime(nation, "launchshitcoin", shitcoin_cooldown);
+  if (secondsLeft > 0) {
+    const hours = Math.floor(secondsLeft / 3600);
+    const minutes = Math.floor((secondsLeft % 3600) / 60); // ⬅️ Fix here
+    const seconds = secondsLeft % 60;
+    return interaction.reply({
+      content: `⏳ Your nation must wait ${hours} hours, ${minutes} minutes, and ${seconds} seconds before launching another shitcoin.`,
       ephemeral: true,
     });
   }
@@ -71,7 +82,8 @@ export async function execute(interaction) {
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
 
   // Set extended cooldown
-  setResourceCooldown(player, "launchshitcoin", 4 * 60 * 60 * 1000);
+  setResourceCooldown(player);
+  setNationCooldown(nation, "launchshitcoin");
 
   await Promise.all([saveUser(player), saveNation(nation)]);
 
