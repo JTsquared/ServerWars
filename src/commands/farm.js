@@ -49,16 +49,9 @@ export async function execute(interaction) {
   });
 
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
-
-  // 5) compute food yield: base = 1 + totalFertility, getResourceYield adds tier bonus
-  const totalFertility = ownedTiles.reduce((sum, t) => sum + (t.resources?.fertility || 0), 0);
-  const baseYield = 1 + totalFertility;
-  const foodYield = getResourceYield(player.exp.economist, economistTiers, baseYield);
-
-  // 6) population increase is food yield rounded up
+  const foodYield = getResourceYield(player.exp.economist, economistTiers, nation, "food", ownedTiles);
   const popIncrease = Math.ceil(foodYield);
 
-  // 7) apply to nation
   nation.resources.food = (nation.resources.food || 0) + foodYield;
   nation.population = (nation.population || 0) + popIncrease;
 

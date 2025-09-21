@@ -1,7 +1,6 @@
-
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
-import { WORLD_TILES } from "../utils/constants.js";
+import { WORLD_TILES, BUILDINGS } from "../utils/constants.js";
 
 export const data = new SlashCommandBuilder()
   .setName("stats")
@@ -13,39 +12,52 @@ export async function execute(interaction) {
     return interaction.reply("❌ Your nation is not yet established. Use `/join` first.");
   }
 
-  const { resources, military, buildings, discoveredNations, research, leadership } = nation;
+  const { resources, military, buildings, discoveredNations, research, leadership, name, population, tilesDiscovered } = nation;
 
-  // Research discoveries
+  // 🏛️ Format Buildings
+  const buildingList = Object.entries(buildings)
+    .filter(([key]) => key !== "city") // exclude city from this list, handled separately
+    .map(([key, count]) => {
+      const label = BUILDINGS[key.toUpperCase()]?.name || key;
+      return `🏗️ ${label}: ${count}`;
+    }).join("\n") || "None";
+
+  // 📜 Format Research
   const researchList = Object.entries(research)
     .filter(([_, unlocked]) => unlocked)
-    .map(([key]) => key.replace("_", " "))
+    .map(([key]) => key.replace(/_/g, " "))
     .join(", ") || "None";
 
-  // Leadership roles
+  // 🧑‍✈️ Format Leadership
   const leaders = [
-    `👑 Commander in Chief: ${leadership.commanderInChief?.userId ? `<@${leadership.commanderInChief.userId}> XP: ${leadership.commanderInChief.exp}` : "Unclaimed"}`,
-    `💰 Finance Minister: ${leadership.financeMinister?.userId ? `<@${leadership.financeMinister.userId}> XP: ${leadership.financeMinister.exp}` : "Unclaimed"}`,
-    `🕵️ Chief Scout: ${leadership.chiefScout?.userId ? `<@${leadership.chiefScout.userId}> XP: ${leadership.chiefScout.exp}` : "Unclaimed"}`,
-    `🌐 Foreign Minister: ${leadership.foreignMinister?.userId ? `<@${leadership.foreignMinister.userId}> XP: ${leadership.foreignMinister.exp}` : "Unclaimed"}`
+    `👑 Commander in Chief: ${leadership.commanderInChief?.userId ? `<@${leadership.commanderInChief.userId}> (XP: ${leadership.commanderInChief.exp})` : "Unclaimed"}`,
+    `💰 Finance Minister: ${leadership.financeMinister?.userId ? `<@${leadership.financeMinister.userId}> (XP: ${leadership.financeMinister.exp})` : "Unclaimed"}`,
+    `🕵️ Chief Scout: ${leadership.chiefScout?.userId ? `<@${leadership.chiefScout.userId}> (XP: ${leadership.chiefScout.exp})` : "Unclaimed"}`,
+    `🌐 Foreign Minister: ${leadership.foreignMinister?.userId ? `<@${leadership.foreignMinister.userId}> (XP: ${leadership.foreignMinister.exp})` : "Unclaimed"}`
   ].join("\n");
 
-  await interaction.reply(
-    `🌍 **${nation.name} Stats**\n` +
-    `👥 Population: ${nation.population}\n` +
-    `🏙️ Cities: ${buildings.city}\n\n` +
+  const embed = new EmbedBuilder()
+    .setTitle(`🌍 Nation Stats: ${name}`)
+    .setColor(0x2ecc71)
+    .addFields(
+      { name: "👥 Population", value: `${population}`, inline: true },
+      { name: "🏙️ Cities", value: `${buildings.city || 0}`, inline: true },
+      { name: "🗺️ Map Progress", value: `${tilesDiscovered}/${WORLD_TILES} tiles discovered`, inline: true },
 
-    `📦 Resources:\n` +
-    `🍞 Food: ${resources.food} | ⛏️ Steel: ${resources.steel} | 💰 Gold: ${resources.gold} | 🛢 Oil: ${resources.oil}\n\n` +
+      { name: "📦 Resources", value: `🍞 Food: ${resources.food} | ⛏️ Steel: ${resources.steel} | 💰 Gold: ${resources.gold} | 🛢 Oil: ${resources.oil}` },
 
-    `🪖 Military:\n` +
-    `Troops: ${military.troops} | 🛡️ Tanks: ${military.tanks} | ✈️ Jets: ${military.jets}\n\n` +
+      { name: "🪖 Military", value: `👥 Troops: ${military.troops} | 🛡️ Tanks: ${military.tanks} | ✈️ Jets: ${military.jets}` },
 
-    `📜 Research Discovered: ${researchList}\n\n` +
+      { name: "🏗️ Buildings", value: buildingList },
 
-    `🌐 Nations Encountered: ${discoveredNations.length}\n` +
-    `🗺️ Tiles Discovered: ${nation.tilesDiscovered} out of ${WORLD_TILES}\n\n` +
+      { name: "📜 Research Unlocked", value: researchList },
 
-    `⚔️ Leadership:\n${leaders}`
-  );
+      { name: "🧑‍💼 Leadership", value: leaders },
+
+      { name: "🌐 Other Nations Discovered", value: `${discoveredNations.length}`, inline: true }
+    )
+    .setFooter({ text: `Requested by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+    .setTimestamp();
+
+  await interaction.reply({ embeds: [embed] });
 }
-

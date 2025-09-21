@@ -3,7 +3,7 @@ import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
 import { economistTiers } from "../data/tiers.js";
-import { EXP_GAIN, BUILDINGS } from "../utils/constants.js";
+import { EXP_GAIN, BUILDINGS, RESEARCH } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
 
@@ -16,10 +16,12 @@ export const data = new SlashCommandBuilder()
       .setDescription("Type of building to construct")
       .setRequired(true)
       .addChoices(
-        ...Object.keys(BUILDINGS).map(key => ({
-          name: key.charAt(0).toUpperCase() + key.slice(1),
-          value: key,
-        }))
+        ...Object.entries(BUILDINGS)
+          .filter(([key]) => key !== "CITY") // ❌ filter out CITY
+          .map(([key, value]) => ({
+            name: value.name,
+            value: key, // 👈 use key (e.g. "BANK"), not lowercased
+          }))
       )
   );
 
@@ -58,11 +60,16 @@ export async function execute(interaction) {
     return interaction.reply("⚠️ Invalid building type selected.");
   }
 
-  // Research requirement check
   if (building.requiresResearch) {
-    const required = building.requiresResearch.toLowerCase();
-    if (!nation.research[required]) {
-      return interaction.reply(`🔬 You must complete **${building.requiresResearch}** research before building a **${buildingType}**.`);
+    const required = building.requiresResearch.toUpperCase(); // no need to `.toLowerCase()` + then `.toUpperCase()` again
+    console.log("Required research:", required);
+    const researchObj = RESEARCH[required];
+    console.log(researchObj);
+    const dbName = researchObj?.dbname;
+    console.log("DB Name:", dbName);
+  
+    if (!dbName || !nation.research[dbName]) {
+      return interaction.reply(`🔬 You must complete **${building.requiresResearch}** research before building a **${building.name}**.`);
     }
   }
 
@@ -72,16 +79,29 @@ export async function execute(interaction) {
     nation.resources.steel < building.cost.steel
   ) {
     return interaction.reply(
-      `💰 Not enough resources to build a **${buildingType}**.\n` +
+      `💰 Not enough resources to build a **${building.name}**.\n` +
       `Required: ${building.cost.gold} gold, ${building.cost.steel} steel\n` +
       `Current: ${nation.resources.gold} gold, ${nation.resources.steel} steel`
     );
   }
 
+  if (building.max && building.max > 0) {
+    const currentCount = nation.buildings[building.dbname] || 0;
+    const cityCount = nation.buildings["city"] || 1; // fallback: assume 1 if not set
+    const maxAllowed = cityCount * building.max;
+  
+    if (currentCount >= maxAllowed) {
+      return interaction.reply(
+        `🚫 You’ve reached the maximum number of **${building.name}s** allowed for your nation.\n` +
+        `🧱 Limit: **${building.max} per city** × **${cityCount} city(ies)** = **${maxAllowed} total**.`
+      );
+    }
+  }
+
   // Deduct resources and add building
   nation.resources.gold -= building.cost.gold;
   nation.resources.steel -= building.cost.steel;
-  nation.buildings[buildingType] = (nation.buildings[buildingType] || 0) + 1;
+  nation.buildings[building.dbname] = (nation.buildings[building.dbname] || 0) + 1;
 
   // Gain economist EXP
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
@@ -89,15 +109,12 @@ export async function execute(interaction) {
   // Apply cooldown
   setResourceCooldown(player);
 
-  console.log("/build nation.steel", nation.resources.steel);
   await Promise.all([saveUser(player), saveNation(nation)]);
 
-  // Reply
-  let reply = `🏗️ You constructed a new **${buildingType}**!\n` +
-              `🏛️ Total ${buildingType}s: **${nation.buildings[buildingType]}**\n` +
-              `💰 Gold remaining: **${nation.resources.gold}**, Steel remaining: **${nation.resources.steel}**\n` +
-              `+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
-
+  let reply = `🏗️ You constructed a new **${building.name}**!\n` +
+  `🏛️ ${building.name} total: **${nation.buildings[building.dbname]}**\n` +
+  `💰 Gold remaining: **${nation.resources.gold}**, Steel remaining: **${nation.resources.steel}**\n` +
+  `+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
   await interaction.reply(reply);

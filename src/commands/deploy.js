@@ -78,20 +78,22 @@ export async function execute(interaction) {
   if (totalOilCost > 0)   costMsg += `🛢️ -${totalOilCost} Oil `;
   if (totalFoodCost > 0)  costMsg += `🍞 -${totalFoodCost} Food `;
 
-  // Base yield from EXP + tier
-  const baseUnits = getResourceYield(player.exp.military, militaryTiers);
+  // // Base yield from EXP + tier
+  // const baseUnits = getResourceYield(player.exp.military, militaryTiers);
 
-  // Building bonuses
-  let bonus = 0;
-  if (unitType === "troops") {
-    bonus = nation.buildings.barracks * BUILDINGS.BARRACKS.bonus;
-  } else if (unitType === "tanks") {
-    bonus = nation.buildings.depot * BUILDINGS.DEPOT.bonus;
-  } else if (unitType === "jets") {
-    bonus = nation.buildings.hangar * BUILDINGS.HANGAR.bonus;
-  }
+  // // Building bonuses
+  // let bonus = 0;
+  // if (unitType === "troops") {
+  //   bonus = nation.buildings.barracks * BUILDINGS.BARRACKS.bonus;
+  // } else if (unitType === "tanks") {
+  //   bonus = nation.buildings.depot * BUILDINGS.DEPOT.bonus;
+  // } else if (unitType === "jets") {
+  //   bonus = nation.buildings.hangar * BUILDINGS.HANGAR.bonus;
+  // }
 
-  let totalDeployed = baseUnits + bonus;
+  // let totalDeployed = baseUnits + bonus;
+
+  let totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, []);
 
   // Special cap for troops based on population
   if (unitType === "troops") {
