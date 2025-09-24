@@ -51,10 +51,12 @@ const nationSchema = new mongoose.Schema({
   },
 
   tilesDiscovered: { type: Number, default: 0 },
-  discoveredNations: [
+  discoveredCities: [
     {
-      serverId: String,
-      name: String
+      serverId: String,   // nation owner
+      name: String,       // nation name
+      cityName: String,   // city name
+      tileId: String      // tile reference
     }
   ],
 

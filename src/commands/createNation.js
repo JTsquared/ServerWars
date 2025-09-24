@@ -67,6 +67,7 @@ export async function execute(interaction) {
     city: {
       exists: true,
       owner: nation.serverId,
+      ownerName: nation.name,
       foundedAt: new Date(),
       name: `${name} Capital`
     },

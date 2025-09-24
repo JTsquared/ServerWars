@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 const tileSchema = new mongoose.Schema({
   tileId: { type: String, required: true, unique: true },
   serverId: { type: String }, // optional, which nation currently owns this tile (after settlement)
-  surveyedBy: [{ type: String }], // array of Player IDs who discovered this tile
+  surveyedBy: [{ type: String }], // array of Nation serverIds who discovered this tile
   resources: {
     gold: { type: Number, default: 0 },
     steel: { type: Number, default: 0 },
@@ -15,6 +15,7 @@ const tileSchema = new mongoose.Schema({
     name: { type: String },
     exists: { type: Boolean, default: false },
     owner: { type: String, ref: "Nation" }, // serverId of the Nation
+    ownerName: { type: String }, // cached nation name for convenience
     foundedAt: { type: Date }
   }
 }, { timestamps: true });

@@ -62,6 +62,8 @@ export const data = new SlashCommandBuilder()
     await nation.save();
   
     return interaction.reply(
-      `✅ Research completed: **${RESEARCH[field].name}** research`
+      `✅ Research completed: **${RESEARCH[field].name}** research\n` +
+      `- Cost: ${gold} gold${steel > 0 ? `, ${steel} steel` : ''}\n` +
+      `- Remaining Resources: ${nation.resources.gold} gold, ${nation.resources.steel} steel`
     );
   }

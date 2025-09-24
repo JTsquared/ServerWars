@@ -1,7 +1,7 @@
 // commands/help.js
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import { helpInfo } from "../utils/helpInfo.js";
-import { BUILDINGS } from "../utils/constants.js";
+import { BUILDINGS, RESEARCH } from "../utils/constants.js";
 
 export const data = new SlashCommandBuilder()
   .setName("help")
@@ -48,6 +48,35 @@ export async function execute(interaction) {
 
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
+
+// Inside your execute() function:
+if (commandName?.toLowerCase() === "research") {
+  const embed = new EmbedBuilder()
+    .setTitle("🔬 Research Topics")
+    .setColor(0x3498db)
+    .setDescription("Here's a list of all available research topics, their costs, and what they unlock.");
+
+  const researchEntries = Object.values(RESEARCH).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
+  for (const research of researchEntries) {
+    const costStr = Object.entries(research.cost)
+      .map(([resource, amount]) => `${resource}: ${amount}`)
+      .join(", ");
+
+    embed.addFields({
+      name: `🔹 ${research.name.charAt(0).toUpperCase() + research.name.slice(1)}`,
+      value:
+        `**Cost:** ${costStr}\n` +
+        `**Effect:** ${research.description}`,
+      inline: false
+    });
+  }
+
+  return interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
 
   // 🧾 If no command specified, show full list
   if (!commandName) {

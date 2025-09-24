@@ -52,7 +52,7 @@ export async function execute(interaction) {
       : "No resources";
 
     const cityInfo = tile.city && tile.city.exists
-      ? `City: ${tile.city.name} (Owner: ${tile.city.owner})`
+      ? `City: ${tile.city.name} (Nation: ${tile.city.ownerName})`
       : "No city";
 
     message += `Tile #${tile.tileId} | Fertility: ${tile.fertility || 0} | ${resources} | ${cityInfo}\n`;

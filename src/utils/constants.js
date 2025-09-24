@@ -15,7 +15,7 @@ export const EXP_GAIN = {
 // ⏳ Cooldowns (ms)
 export const COOLDOWN_MS = 1000 * 5
 export const SPY_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-export const SPY_SUCCESS_CHANCE = 0.25; // 25%
+export const SPY_SUCCESS_CHANCE = 0.20; // 25%
 
 // 🏗️ Building Costs & Bonuses
 export const BUILDINGS = {
@@ -49,7 +49,7 @@ export const BUILDINGS = {
     name: "hangar",
     dbname: "hangar",
     cost:  { gold: 400, steel: 400 },
-    bonus: 2,
+    bonus: 1,
     max: 10,
     requiresResearch: "FLIGHT",
     description: "Hangars enabled the deployment of jets. Additional hangars increase jet production."
@@ -85,7 +85,7 @@ export const BUILDINGS = {
     name: "depot",
     dbname: "depot",
     cost: { gold: 350, steel: 500 },
-    bonus: 2,
+    bonus: 1,
     max: 10,
     requiresResearch: "MANUFACTURING",
     description: "Depots enabled the deployment of tanks. Additional depots increase tank production."

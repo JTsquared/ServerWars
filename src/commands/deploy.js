@@ -16,9 +16,9 @@ export const data = new SlashCommandBuilder()
       .setDescription("Type of unit to deploy")
       .setRequired(true)
       .addChoices(
-        { name: "Troops", value: "troops" },
-        { name: "Tanks", value: "tanks" },
-        { name: "Jets", value: "jets" }
+        { name: "troops", value: "troops" },
+        { name: "tanks", value: "tanks" },
+        { name: "jets", value: "jets" }
       )
   );
 
@@ -93,14 +93,15 @@ export async function execute(interaction) {
 
   // let totalDeployed = baseUnits + bonus;
 
-  let totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, []);
+  let totalDeployed = 0;
+  console.log(`Base deployed ${unitType}: ${totalDeployed}`);
 
   // Special cap for troops based on population
   if (unitType === "troops") {
 
+    totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, []);
     // Population bonus: +2 support for every POPULATION_PER_CITY in the nation
     const populationBonus = Math.floor(nation.population / POPULATION_PER_CITY) * 2;
-    console.log(`Population bonus troops: ${populationBonus}`);
 
     totalDeployed = totalDeployed + populationBonus;
     
@@ -114,10 +115,13 @@ export async function execute(interaction) {
   }
 
   if (unitType === "tanks") {
+    totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, [], 0);
     nation.military.tanks = (nation.military.tanks || 0) + totalDeployed;
+    console.log("Deployed tanks, total now:", nation.military.tanks);
   }
 
   if (unitType === "jets") {
+    totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, [], 0);
     nation.military.jets = (nation.military.jets || 0) + totalDeployed;
   }
 

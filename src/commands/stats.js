@@ -12,7 +12,10 @@ export async function execute(interaction) {
     return interaction.reply("❌ Your nation is not yet established. Use `/join` first.");
   }
 
-  const { resources, military, buildings, discoveredNations, research, leadership, name, population, tilesDiscovered } = nation;
+  const { resources, military, buildings, research, leadership, name, population, tilesDiscovered } = nation;
+
+  const discoveredNationIds = new Set((nation.discoveredCities || []).map(dc => dc.serverId));
+  const discoveredNationCount = discoveredNationIds.size;
 
   // 🏛️ Format Buildings
   const buildingList = Object.entries(buildings)
@@ -54,7 +57,7 @@ export async function execute(interaction) {
 
       { name: "🧑‍💼 Leadership", value: leaders },
 
-      { name: "🌐 Other Nations Discovered", value: `${discoveredNations.length}`, inline: true }
+      { name: "🌐 Other Nations Discovered", value: `${discoveredNationCount}`, inline: true }
     )
     .setFooter({ text: `Requested by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
     .setTimestamp();
