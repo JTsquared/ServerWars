@@ -84,6 +84,7 @@ export async function execute(interaction) {
   tile.city.exists = true;
   tile.city.name = cityName;
   tile.city.owner = nation.serverId;
+  tile.city.ownerName = nation.name;
   tile.city.foundedAt = new Date();
   await tile.save();
 

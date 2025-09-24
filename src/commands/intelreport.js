@@ -5,7 +5,7 @@ import Intel from "../models/Intel.js";
 
 export const data = new SlashCommandBuilder()
   .setName("intelreport")
-  .setDescription("View your nation’s most recent spy reports on rivals.");
+  .setDescription("View your nation’s gathered intel on rivals.");
 
 export async function execute(interaction) {
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
@@ -13,20 +13,28 @@ export async function execute(interaction) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");
   }
 
-  const reports = await Intel.find({ spyingNationId: nation.serverId });
-  if (reports.length === 0) {
-    return interaction.reply("📭 You have no intel reports yet. Use `/spy` to gather intel on rivals.");
+  const dossiers = await Intel.find({ spyingNationId: nation.serverId });
+  if (dossiers.length === 0) {
+    return interaction.reply("📭 You have no intel reports yet. Explore or spy to gather intel on other nations.");
   }
 
-  let output = `📓 **Intel Reports for ${nation.name}**\n\n`;
-  for (const intel of reports) {
-    const r = intel.report;
-    if (!r) continue;
-    output += `**${r.nationName}**\n`;
-    output += `👥 Pop: ${r.population} | 🏙️ Cities: ${r.cities}\n`;
-    output += `📦 Resources → Food: ${r.resources.food}, Gold: ${r.resources.gold}, Steel: ${r.resources.steel}, Oil: ${r.resources.oil}\n`;
-    output += `⚔️ Military → Troops: ${r.military.troops}, Tanks: ${r.military.tanks}, Jets: ${r.military.jets}\n`;
-    output += `🏗️ Buildings → Cities: ${r.buildings.city}, Barracks: ${r.buildings.barracks}, Factories: ${r.buildings.factory}, Airbases: ${r.buildings.airbase}\n\n`;
+  let output = `📓 **Intel Report for ${nation.name}**\n\nForeign Nations:\n`;
+
+  for (const d of dossiers) {
+    output += `**Nation: ${d.nationName}**\n`;
+    output += `👥 Population: ${d.population ?? "UNKNOWN"} | 👤 Players: ${d.playerCount ?? "UNKNOWN"}\n`;
+
+    output += `🏙️ Known Cities:\n`;
+    if (d.knownCities.length > 0) {
+      for (const c of d.knownCities) {
+        output += `   - [Tile ${c.tileId}] ${c.name}\n`;
+      }
+    }
+
+    output += `📦 Resources → Food: ${d.resources.food ?? "UNKNOWN"}, Gold: ${d.resources.gold ?? "UNKNOWN"}, Steel: ${d.resources.steel ?? "UNKNOWN"}, Oil: ${d.resources.oil ?? "UNKNOWN"}\n`;
+    output += `⚔️ Military → Troops: ${d.military.troops ?? "UNKNOWN"}, Tanks: ${d.military.tanks ?? "UNKNOWN"}, Jets: ${d.military.jets ?? "UNKNOWN"}\n`;
+    output += `🏗️ Buildings → Cities: ${d.buildings.city ?? "UNKNOWN"}, Barracks: ${d.buildings.barracks ?? "UNKNOWN"}, Factories: ${d.buildings.factory ?? "UNKNOWN"}, Hangars: ${d.buildings.hangar ?? "UNKNOWN"}\n`;
+    output += `🔬 Research → Manufacturing: ${d.research.manufacturing ?? "UNKNOWN"}, Flight: ${d.research.flight ?? "UNKNOWN"}, Banking: ${d.research.banking ?? "UNKNOWN"}, ShitCoins: ${d.research.shit_coins ?? "UNKNOWN"}\n\n`;
   }
 
   if (output.length > 2000) {

@@ -88,7 +88,7 @@ async function createMockNations() {
         shit_coins: Math.random() < 0.05
       },
       tilesDiscovered,
-      discoveredNations: [],
+      discoveredCities: [],
       playerCount
     });
 
@@ -106,7 +106,7 @@ async function createMockNations() {
     buildings: { city: 1, barracks: 0, mine: 0, farm: 0, oilrig: 0, hangar: 0 },
     research: { manufacturing: false, flight: false, happy_meals: false, banking: false, shit_coins: false },
     tilesDiscovered: 1,
-    discoveredNations: [],
+    discoveredCities: [],
     playerCount: 4
   });
   await you.save();
@@ -183,74 +183,90 @@ function buildWeightedArray(others) {
  * Simulate many explore attempts from the perspective of 'you' nation (serverId: "you")
  * Uses the same selection logic as your /explore command (with "fair" fallback)
  */
-async function simulateExploreRounds(rounds = 10000) {
+/**
+ * Simulate many explore attempts from the perspective of 'you' nation (serverId: "you")
+ * Uses the same selection logic as your /explore command
+ * but tracks discoveries at the city level for analysis.
+ */
+/**
+ * Simulate many explore attempts from the perspective of 'you' nation (serverId: "you")
+ * Mirrors the /explore logic but allows multiple city discoveries per nation.
+ * Prints a summary of discoveries at the city level.
+ */
+async function simulateExploreRounds(rounds = 1000) {
   const you = await Nation.findOne({ serverId: "you" });
   if (!you) throw new Error("you nation missing");
 
-  // compute starting set of other nations (excluding you)
-  const allOthers = await Nation.find({ serverId: { $ne: you.serverId } });
+  const allNations = await Nation.find({ serverId: { $ne: you.serverId } });
+  const allCities = await Tile.find({ "city.exists": true, "city.owner": { $ne: you.serverId } });
 
-  // We'll track counts for how often each other nation gets discovered
-  const counts = {};
-  for (const o of allOthers) counts[o.serverId] = 0;
+  const discoveredCityKeys = new Set();
+  const cityCounts = {}; // count per city
+  const nationCounts = {}; // count per nation
+
+  for (const n of allNations) {
+    nationCounts[n.serverId] = 0;
+  }
+
   let treasureCount = 0;
-  let selfDiscoverCount = 0;
 
   for (let r = 0; r < rounds; r++) {
-    // emulate per-round state changes minimally:
-    // increment discoveredTiles (we'll use a local copy to avoid persistent DB write for speed)
     you.tilesDiscovered = (you.tilesDiscovered || 0) + 1;
     const tilesRemaining = Math.max(0, WORLD_TILES - you.tilesDiscovered);
 
-    // recompute undiscovered list (simulate you.discoveredNations)
-    const discoveredIds = you.discoveredNations.map(d => d.serverId);
-    const undiscoveredNations = allOthers.filter(n => n.serverId !== you.serverId && !discoveredIds.includes(n.serverId));
-    const numUndiscovered = undiscoveredNations.length;
+    const undiscoveredCities = allCities.filter(tile => {
+      const key = `${tile.city.owner}:${tile.city.name}`;
+      return !discoveredCityKeys.has(key);
+    });
+    const totalCitiesRemaining = undiscoveredCities.length;
 
-    // formula chance
-    let baseChance = 0.02;
-    let nationFactor = Math.min(0.15, 0.01 * numUndiscovered);
-    let tileFactor = (you.tilesDiscovered / WORLD_TILES) * 0.1;
-    let formulaChance = baseChance + nationFactor + tileFactor;
-    let fairChance = tilesRemaining > 0 ? numUndiscovered / tilesRemaining : 1;
-    let totalChance = Math.min(1, Math.max(formulaChance, fairChance));
+    // Probability: undiscovered cities / remaining tiles
+    let discoveryChance = 0;
+    if (tilesRemaining > 0 && totalCitiesRemaining > 0) {
+      discoveryChance = totalCitiesRemaining / tilesRemaining;
+    } else if (totalCitiesRemaining > 0 && tilesRemaining === 0) {
+      discoveryChance = 1;
+    }
 
     const roll = Math.random();
 
     if (roll < 0.1) {
       treasureCount++;
       continue;
-    } else if (roll < 0.1 + totalChance && numUndiscovered > 0) {
-      // weighted selection among undiscovered nations
-      const weighted = buildWeightedArray(undiscoveredNations);
-      if (weighted.length === 0) {
-        continue;
+    } else if (roll < 0.1 + discoveryChance && totalCitiesRemaining > 0) {
+      // weighted nation selection
+      const weighted = [];
+      for (const other of allNations) {
+        const weight = (other.population || 1) + (other.playerCount || 1);
+        for (let i = 0; i < weight; i++) weighted.push(other);
       }
-      const other = weighted[Math.floor(Math.random() * weighted.length)];
+      const otherNation = weighted[Math.floor(Math.random() * weighted.length)];
 
-      // safety: ensure not selecting self
-      if (other.serverId === you.serverId) {
-        selfDiscoverCount++;
-        continue;
+      // pick undiscovered city
+      const candidateCities = undiscoveredCities.filter(
+        t => t.city.owner === otherNation.serverId
+      );
+      if (candidateCities.length > 0) {
+        const randomTile = candidateCities[Math.floor(Math.random() * candidateCities.length)];
+        const key = `${randomTile.city.owner}:${randomTile.city.name}`;
+        discoveredCityKeys.add(key);
+
+        nationCounts[otherNation.serverId]++;
+        cityCounts[key] = (cityCounts[key] || 0) + 1;
       }
-
-      counts[other.serverId] = (counts[other.serverId] || 0) + 1;
-
-      // mark discovered (so subsequent rounds don't re-discover)
-      you.discoveredNations.push({ serverId: other.serverId, name: other.name });
     }
   }
 
-  // print summary
   console.log("--- Explore simulation summary ---");
   console.log(`Rounds: ${rounds}`);
   console.log(`Treasure events: ${treasureCount}`);
-  console.log(`Self-discover attempts (should be 0): ${selfDiscoverCount}`);
-  console.log("Discover counts (top nations):");
-  const sortable = Object.entries(counts).sort((a,b) => b[1]-a[1]);
-  console.table(sortable.slice(0, 20));
+  console.log("Nation discovery counts:");
+  console.table(nationCounts);
+  console.log("City discovery counts:");
+  console.table(cityCounts);
   console.log("----------------------------------");
 }
+
 
 async function main() {
   try {
@@ -260,7 +276,7 @@ async function main() {
     await createMockTiles(nations);
 
     // run a simulation to validate the explore logic
-    await simulateExploreRounds(5000);
+    await simulateExploreRounds(500);
 
     console.log("✅ Seeding + simulation complete. DB left populated for manual testing.");
   } catch (err) {
