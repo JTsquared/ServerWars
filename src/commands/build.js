@@ -38,9 +38,7 @@ export async function execute(interaction) {
 
   const financeRole = interaction.guild.roles.cache.find(r => r.name === "Treasury");
   const hasDiscordRole = financeRole && interaction.member.roles.cache.has(financeRole.id);
-  
   const isInternalMinister = nation.leadership.financeMinister.userId === interaction.user.id;
-  
   if (!hasDiscordRole && !isInternalMinister) {
     return interaction.reply("🚫 Only the **Finance Minister** or someone with the Treasury role may sell the nation's resources.");
   }
@@ -74,13 +72,28 @@ export async function execute(interaction) {
   }
 
   // Resource check (gold + steel)
+  // if (
+  //   nation.resources.gold < building.cost.gold ||
+  //   nation.resources.steel < building.cost.steel
+  // ) {
+  //   return interaction.reply(
+  //     `💰 Not enough resources to build a **${building.name}**.\n` +
+  //     `Required: ${building.cost.gold} gold, ${building.cost.steel} steel\n` +
+  //     `Current: ${nation.resources.gold} gold, ${nation.resources.steel} steel`
+  //   );
+  // }
+
+  const currentCount = nation.buildings[building.dbname] || 0;
+  const scaledGoldCost  = building.cost.gold  * (currentCount + .5);
+  const scaledSteelCost = building.cost.steel * (currentCount + .5);
+
   if (
-    nation.resources.gold < building.cost.gold ||
-    nation.resources.steel < building.cost.steel
+    nation.resources.gold < scaledGoldCost ||
+    nation.resources.steel < scaledSteelCost
   ) {
     return interaction.reply(
       `💰 Not enough resources to build a **${building.name}**.\n` +
-      `Required: ${building.cost.gold} gold, ${building.cost.steel} steel\n` +
+      `Required: ${scaledGoldCost} gold, ${scaledSteelCost} steel\n` +
       `Current: ${nation.resources.gold} gold, ${nation.resources.steel} steel`
     );
   }
@@ -99,8 +112,10 @@ export async function execute(interaction) {
   }
 
   // Deduct resources and add building
-  nation.resources.gold -= building.cost.gold;
-  nation.resources.steel -= building.cost.steel;
+  // nation.resources.gold -= building.cost.gold;
+  // nation.resources.steel -= building.cost.steel;
+  nation.resources.gold -= scaledGoldCost;
+  nation.resources.steel -= scaledSteelCost;
   nation.buildings[building.dbname] = (nation.buildings[building.dbname] || 0) + 1;
 
   // Gain economist EXP
@@ -113,6 +128,7 @@ export async function execute(interaction) {
 
   let reply = `🏗️ You constructed a new **${building.name}**!\n` +
   `🏛️ ${building.name} total: **${nation.buildings[building.dbname]}**\n` +
+  `Gold cost: **${scaledGoldCost}**, Steel cost: **${scaledSteelCost}**\n` +
   `💰 Gold remaining: **${nation.resources.gold}**, Steel remaining: **${nation.resources.steel}**\n` +
   `+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;

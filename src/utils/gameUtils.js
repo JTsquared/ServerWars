@@ -61,9 +61,6 @@ export function getBuildingBonus(nation, resource) {
 
     // Find the buildingDef whose dbname matches the schema key
     const buildingDef = BUILDINGS_BY_DBNAME[buildingKey];
-    // const buildingDef = Object.values(BUILDINGS).find(
-    //   b => b.dbname === buildingKey
-    // );
     if (!buildingDef) continue;
 
     switch (resource) {
@@ -71,7 +68,13 @@ export function getBuildingBonus(nation, resource) {
         if (buildingDef.dbname === "factory") bonus += buildingDef.bonus * count;
         break;
       case "gold":
-        if (buildingDef.dbname === "bank") bonus += buildingDef.bonus * count;
+        if (buildingDef.dbname === "bank") {
+          //make sure bank has not been hacked. No bonus while hacked.
+          const now = Date.now();
+          const hackedUntil = nation.hacks?.bankDisabledUntil ? new Date(nation.hacks.bankDisabledUntil).getTime() : 0;
+          const bankIsDisabled = hackedUntil && hackedUntil > now;
+          bonus = bankIsDisabled ? 0 : buildingDef.bonus * count;
+        }
         break;
       case "food":
         if (buildingDef.dbname === "mickdonalds") bonus += buildingDef.bonus * count;
@@ -206,5 +209,61 @@ export async function grantExp(player, path, amount, nation) {
 
   return messages.length ? messages.join("\n") : null;
 }
+
+export function getServerWarsChannel(guild) {
+  const channelId = channelMap.get(guild.id);
+  if (channelId) {
+    const channel = guild.channels.cache.get(channelId);
+    if (
+      channel &&
+      channel.isTextBased() &&
+      channel.permissionsFor(guild.members.me)?.has("SendMessages")
+    ) {
+      return channel;
+    }
+  }
+  return null; // fallback handling if needed
+}
+
+// src/utils/checkPermissions.js
+export function checkPermissions(interaction, nation, roleType) {
+  console.log("🔎 Checking permissions for user:", interaction.user.tag, "RoleType:", roleType);
+
+  // Map role types → leadership fields + discord roles
+  const roleMap = {
+    Diplomatic: { discordRole: "Political Leader", ministerKey: "Foreign Minister" },
+    Military:   { discordRole: "Political Leader", ministerKey: "Commander in Chief" },
+    Economic:   { discordRole: "Treasurer",        ministerKey: "Finance Minister" },
+    Explorer:   { discordRole: "Political Leader", ministerKey: "Chief Scout" }
+  };
+
+  const mapping = roleMap[roleType];
+  if (!mapping) {
+    console.warn(`⚠️ Unknown roleType "${roleType}" passed to checkPermissions.`);
+    return false;
+  }
+
+  // Check Discord role
+  const discordRole = interaction.guild.roles.cache.find(r => r.name === mapping.discordRole);
+  const hasDiscordRole = discordRole && interaction.member.roles.cache.has(discordRole.id);
+
+  console.log(`   - Discord role required: ${mapping.discordRole}, found: ${!!discordRole}, memberHas: ${hasDiscordRole}`);
+
+  // Check leadership assignment
+  const minister = nation.leadership?.[mapping.ministerKey];
+  const isMinister = minister?.userId === interaction.user.id;
+
+  console.log(`   - Nation ministerKey: ${mapping.ministerKey}, ministerUserId: ${minister?.userId}, userIsMinister: ${isMinister}`);
+
+  // Final result
+  const allowed = hasDiscordRole || isMinister;
+  console.log(`✅ Permission check result: ${allowed}`);
+  return allowed;
+}
+
+
+// simple shared registry
+export const channelMap = new Map();
+
 
 

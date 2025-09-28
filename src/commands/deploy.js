@@ -46,59 +46,50 @@ export async function execute(interaction) {
   if (unitType === "tanks" && !nation.research.manufacturing) {
     return interaction.reply("🚫 You must research **Manufacturing** before deploying tanks.");
   }
+  if (unitType === "tanks" && !nation.buildings.depot > 0) {
+    return interaction.reply("🚫 You must build at least 1 **Depot** before deploying tanks.");
+  }
   if (unitType === "jets" && !nation.research.flight) {
     return interaction.reply("🚫 You must research **Flight** before deploying jets.");
   }
-
-  let cost = {};
-  if (unitType === "troops") cost = DEPLOY_COSTS.TROOPS;
-  if (unitType === "tanks")  cost = DEPLOY_COSTS.TANKS;
-  if (unitType === "jets")   cost = DEPLOY_COSTS.JETS;
-
-  const totalSteelCost = cost.steel
-  const totalOilCost   = cost.oil
-  const totalFoodCost  = cost.food
-
-  // Check if nation has enough resources
-  if (nation.resources.steel < totalSteelCost || nation.resources.oil < totalOilCost || nation.resources.food < totalFoodCost) {
-    return interaction.reply(
-      `🚫 Not enough resources to deploy **${totalDeployed} ${unitType}**.\n` +
-      `Required: ${totalSteelCost} steel, ${totalOilCost} oil, ${totalFoodCost} food\n` +
-      `Current: ${nation.resources.steel} steel, ${nation.resources.oil} oil, ${nation.resources.food} food`
-    );
+  if (unitType === "jets" && !nation.buildings.hangar > 0) {
+    return interaction.reply("🚫 You must build at least 1 **Hangar** before deploying jets.");
   }
 
-  // Deduct resources
-  nation.resources.steel -= totalSteelCost;
-  nation.resources.oil   -= totalOilCost;
-  nation.resources.food  -= totalFoodCost;
+  // let cost = {};
+  // if (unitType === "troops") cost = DEPLOY_COSTS.TROOPS;
+  // if (unitType === "tanks")  cost = DEPLOY_COSTS.TANKS;
+  // if (unitType === "jets")   cost = DEPLOY_COSTS.JETS;
 
-  let costMsg = "";
-  if (totalSteelCost > 0) costMsg += `🔩 -${totalSteelCost} Steel `;
-  if (totalOilCost > 0)   costMsg += `🛢️ -${totalOilCost} Oil `;
-  if (totalFoodCost > 0)  costMsg += `🍞 -${totalFoodCost} Food `;
+  // const totalSteelCost = cost.steel
+  // const totalOilCost   = cost.oil
+  // const totalFoodCost  = cost.food
 
-  // // Base yield from EXP + tier
-  // const baseUnits = getResourceYield(player.exp.military, militaryTiers);
-
-  // // Building bonuses
-  // let bonus = 0;
-  // if (unitType === "troops") {
-  //   bonus = nation.buildings.barracks * BUILDINGS.BARRACKS.bonus;
-  // } else if (unitType === "tanks") {
-  //   bonus = nation.buildings.depot * BUILDINGS.DEPOT.bonus;
-  // } else if (unitType === "jets") {
-  //   bonus = nation.buildings.hangar * BUILDINGS.HANGAR.bonus;
+  // // Check if nation has enough resources
+  // if (nation.resources.steel < totalSteelCost || nation.resources.oil < totalOilCost || nation.resources.food < totalFoodCost) {
+  //   return interaction.reply(
+  //     `🚫 Not enough resources to deploy **${totalDeployed} ${unitType}**.\n` +
+  //     `Required: ${totalSteelCost} steel, ${totalOilCost} oil, ${totalFoodCost} food\n` +
+  //     `Current: ${nation.resources.steel} steel, ${nation.resources.oil} oil, ${nation.resources.food} food`
+  //   );
   // }
 
-  // let totalDeployed = baseUnits + bonus;
+  // // Deduct resources
+  // nation.resources.steel -= totalSteelCost;
+  // nation.resources.oil   -= totalOilCost;
+  // nation.resources.food  -= totalFoodCost;
 
+  // let costMsg = "";
+  // if (totalSteelCost > 0) costMsg += `🔩 -${totalSteelCost} Steel `;
+  // if (totalOilCost > 0)   costMsg += `🛢️ -${totalOilCost} Oil `;
+  // if (totalFoodCost > 0)  costMsg += `🍞 -${totalFoodCost} Food `;
+
+  let costMsg = "";
   let totalDeployed = 0;
   console.log(`Base deployed ${unitType}: ${totalDeployed}`);
 
   // Special cap for troops based on population
   if (unitType === "troops") {
-
     totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, []);
     // Population bonus: +2 support for every POPULATION_PER_CITY in the nation
     const populationBonus = Math.floor(nation.population / POPULATION_PER_CITY) * 2;
@@ -111,18 +102,37 @@ export async function execute(interaction) {
     if (totalDeployed <= 0) {
       return interaction.reply(`🚫 The number of troops cannot exceed your population (**${nation.population}**). You need more food to increase your population`);
     }
+
+    const res = deductResourcesForDeployment(nation, unitType, totalDeployed);
+    if (!res.success) {
+      return interaction.reply(res.message);
+    }
+
     nation.military.troops += totalDeployed;
+    costMsg = res.costMsg;
   }
 
   if (unitType === "tanks") {
     totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, [], 0);
-    nation.military.tanks = (nation.military.tanks || 0) + totalDeployed;
+    const res = deductResourcesForDeployment(nation, unitType, totalDeployed);
+    if (!res.success) {
+      return interaction.reply(res.message);
+    }
+  
+    nation.military.tanks += totalDeployed;
+    costMsg = res.costMsg;
     console.log("Deployed tanks, total now:", nation.military.tanks);
   }
 
   if (unitType === "jets") {
     totalDeployed = getResourceYield(player.exp.military, militaryTiers, nation, unitType, [], 0);
-    nation.military.jets = (nation.military.jets || 0) + totalDeployed;
+    const res = deductResourcesForDeployment(nation, unitType, totalDeployed);
+    if (!res.success) {
+      return interaction.reply(res.message);
+    }
+  
+    nation.military.jets += totalDeployed;
+    costMsg = res.costMsg;
   }
 
   // Grant EXP
@@ -142,3 +152,34 @@ export async function execute(interaction) {
 
   await interaction.reply(reply);
 }
+
+function deductResourcesForDeployment(nation, unitType, totalDeployed) {
+  const cost = DEPLOY_COSTS[unitType.toUpperCase()];
+  const totalSteelCost = cost.steel * totalDeployed;
+  const totalOilCost   = cost.oil * totalDeployed;
+  const totalFoodCost  = cost.food * totalDeployed;
+
+  // Check if nation has enough resources
+  if (nation.resources.steel < totalSteelCost ||
+      nation.resources.oil   < totalOilCost   ||
+      nation.resources.food  < totalFoodCost) {
+    return { success: false, message:
+      `🚫 Not enough resources to deploy **${totalDeployed} ${unitType}**.\n` +
+      `Required: ${totalSteelCost} steel, ${totalOilCost} oil, ${totalFoodCost} food\n` +
+      `Current: ${nation.resources.steel} steel, ${nation.resources.oil} oil, ${nation.resources.food} food`
+    };
+  }
+
+  // Deduct resources
+  nation.resources.steel -= totalSteelCost;
+  nation.resources.oil   -= totalOilCost;
+  nation.resources.food  -= totalFoodCost;
+
+  let costMsg = "";
+  if (totalSteelCost > 0) costMsg += `🔩 -${totalSteelCost} Steel `;
+  if (totalOilCost > 0)   costMsg += `🛢️ -${totalOilCost} Oil `;
+  if (totalFoodCost > 0)  costMsg += `🍞 -${totalFoodCost} Food `;
+
+  return { success: true, costMsg };
+}
+

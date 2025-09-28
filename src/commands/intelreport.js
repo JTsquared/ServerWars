@@ -1,5 +1,11 @@
 // intelreport.js
-import { SlashCommandBuilder } from "discord.js";
+import {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 import Nation from "../models/Nation.js";
 import Intel from "../models/Intel.js";
 
@@ -18,28 +24,93 @@ export async function execute(interaction) {
     return interaction.reply("📭 You have no intel reports yet. Explore or spy to gather intel on other nations.");
   }
 
-  let output = `📓 **Intel Report for ${nation.name}**\n\nForeign Nations:\n`;
+  // Helper to render an embed for a given index
+  const renderEmbed = (dossier, index) => {
+    const cityList = dossier.knownCities?.length
+      ? dossier.knownCities.map(c => `- ${c.name} [Tile ID: ${c.tileId}]`).join("\n")
+      : "- UNKNOWN";
 
-  for (const d of dossiers) {
-    output += `**Nation: ${d.nationName}**\n`;
-    output += `👥 Population: ${d.population ?? "UNKNOWN"} | 👤 Players: ${d.playerCount ?? "UNKNOWN"}\n`;
+    const embed = new EmbedBuilder()
+      .setTitle(`📓 Intel Report: ${dossier.nationName}`)
+      .setDescription(`Foreign intel gathered on **${dossier.nationName}**\nReport ${index + 1}/${dossiers.length}`)
+      .addFields(
+        {
+          name: "👥 Population / Players",
+          value: `Population: ${dossier.population ?? "UNKNOWN"}\nPlayers: ${dossier.playerCount ?? "UNKNOWN"}`,
+          inline: true,
+        },
+        { name: "🏙️ Cities", value: cityList, inline: false },
+        {
+          name: "📦 Resources",
+          value: `🍞 Food: ${dossier.resources.food ?? "UNKNOWN"}\n💰 Gold: ${dossier.resources.gold ?? "UNKNOWN"}\n🔩 Steel: ${dossier.resources.steel ?? "UNKNOWN"}\n🛢️ Oil: ${dossier.resources.oil ?? "UNKNOWN"}`,
+          inline: true,
+        },
+        {
+          name: "⚔️ Military",
+          value: `👣 Troops: ${dossier.military.troops ?? "UNKNOWN"}\n🛡️ Tanks: ${dossier.military.tanks ?? "UNKNOWN"}\n✈️ Jets: ${dossier.military.jets ?? "UNKNOWN"}`,
+          inline: true,
+        },
+        {
+          name: "🏗️ Buildings",
+          value: `🏙️ Cities: ${dossier.buildings.city ?? "UNKNOWN"}\n🏰 Barracks: ${dossier.buildings.barracks ?? "UNKNOWN"}\n🏭 Factories: ${dossier.buildings.factory ?? "UNKNOWN"}\n🛫 Hangars: ${dossier.buildings.hangar ?? "UNKNOWN"}`,
+          inline: true,
+        },
+        {
+          name: "🔬 Research",
+          value: `⚙️ Manufacturing: ${dossier.research.manufacturing ?? "UNKNOWN"}\n✈️ Flight: ${dossier.research.flight ?? "UNKNOWN"}\n🏦 Banking: ${dossier.research.banking ?? "UNKNOWN"}\n💩 ShitCoins: ${dossier.research.shit_coins ?? "UNKNOWN"}`,
+          inline: true,
+        }
+      )
+      .setColor("DarkBlue");
 
-    output += `🏙️ Known Cities:\n`;
-    if (d.knownCities.length > 0) {
-      for (const c of d.knownCities) {
-        output += `   - [Tile ${c.tileId}] ${c.name}\n`;
-      }
+    if (dossier.createdAt) {
+      embed.setFooter({ text: "Intel gathered" }).setTimestamp(dossier.createdAt);
     }
 
-    output += `📦 Resources → Food: ${d.resources.food ?? "UNKNOWN"}, Gold: ${d.resources.gold ?? "UNKNOWN"}, Steel: ${d.resources.steel ?? "UNKNOWN"}, Oil: ${d.resources.oil ?? "UNKNOWN"}\n`;
-    output += `⚔️ Military → Troops: ${d.military.troops ?? "UNKNOWN"}, Tanks: ${d.military.tanks ?? "UNKNOWN"}, Jets: ${d.military.jets ?? "UNKNOWN"}\n`;
-    output += `🏗️ Buildings → Cities: ${d.buildings.city ?? "UNKNOWN"}, Barracks: ${d.buildings.barracks ?? "UNKNOWN"}, Factories: ${d.buildings.factory ?? "UNKNOWN"}, Hangars: ${d.buildings.hangar ?? "UNKNOWN"}\n`;
-    output += `🔬 Research → Manufacturing: ${d.research.manufacturing ?? "UNKNOWN"}, Flight: ${d.research.flight ?? "UNKNOWN"}, Banking: ${d.research.banking ?? "UNKNOWN"}, ShitCoins: ${d.research.shit_coins ?? "UNKNOWN"}\n\n`;
-  }
+    return embed;
+  };
 
-  if (output.length > 2000) {
-    output = output.slice(0, 1990) + "...";
-  }
+  let index = 0;
 
-  await interaction.reply(output);
+  // Create navigation buttons
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("prev").setLabel("⬅️ Prev").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("next").setLabel("Next ➡️").setStyle(ButtonStyle.Primary)
+  );
+
+  const message = await interaction.reply({
+    embeds: [renderEmbed(dossiers[index], index)],
+    components: [row],
+    fetchReply: true,
+  });
+
+  // Collector for button interactions
+  const collector = message.createMessageComponentCollector({
+    time: 1000 * 60 * 5, // 5 min timeout
+  });
+
+  collector.on("collect", async (i) => {
+    if (i.user.id !== interaction.user.id) {
+      return i.reply({ content: "❌ This menu isn’t for you.", ephemeral: true });
+    }
+
+    if (i.customId === "prev") {
+      index = (index - 1 + dossiers.length) % dossiers.length;
+    } else if (i.customId === "next") {
+      index = (index + 1) % dossiers.length;
+    }
+
+    await i.update({
+      embeds: [renderEmbed(dossiers[index], index)],
+      components: [row],
+    });
+  });
+
+  collector.on("end", async () => {
+    // Disable buttons when collector ends
+    const disabledRow = new ActionRowBuilder().addComponents(
+      row.components.map(btn => ButtonBuilder.from(btn).setDisabled(true))
+    );
+    await message.edit({ components: [disabledRow] });
+  });
 }

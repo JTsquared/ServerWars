@@ -38,9 +38,13 @@ export async function execute(interaction) {
 
   // Determine available tileIds to survey
   const existingTileIds = await Tile.distinct("tileId");
+  const existingSet = new Set(existingTileIds.map(String)); // normalize as strings
+  
   const availableIds = [];
   for (let i = 1; i <= WORLD_TILES; i++) {
-    if (!existingTileIds.includes(i)) availableIds.push(i);
+    if (!existingSet.has(String(i))) {
+      availableIds.push(i);
+    }
   }
 
   if (availableIds.length === 0) {

@@ -15,7 +15,11 @@ export const EXP_GAIN = {
 // ⏳ Cooldowns (ms)
 export const COOLDOWN_MS = 1000 * 5
 export const SPY_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-export const SPY_SUCCESS_CHANCE = 0.20; // 25%
+export const SPY_SUCCESS_CHANCE = 0.20; 
+export const SABOTAGE_SUCCESS_CHANCE = 0.20;
+export const HACK_SUCCESS_CHANCE = 0.20;
+export const HACK_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const HACK_ALERT_THRESHOLD = 5;
 
 // 🏗️ Building Costs & Bonuses
 export const BUILDINGS = {
@@ -32,7 +36,7 @@ export const BUILDINGS = {
     name: "barracks",
     cost: { gold: 150, steel: 100 },
     bonus: 2 , // +2 troops per /train
-    max: 10,
+    max: 4,
     requiresResearch: "MILITARY_TRAINING",
     description: "Barracks increase your troop training capacity."
   },
@@ -41,16 +45,16 @@ export const BUILDINGS = {
     dbname: "factory",
     cost:  { gold: 150, steel: 100 },
     bonus: 2,
-    max: 10,
+    max: 7,
     requiresResearch: "INDUSTRIALIZATION",
     description: "Factories increase your steel production."
   },
   HANGAR: {
     name: "hangar",
     dbname: "hangar",
-    cost:  { gold: 400, steel: 400 },
+    cost:  { gold: 500, steel: 650 },
     bonus: 1,
-    max: 10,
+    max: 3,
     requiresResearch: "FLIGHT",
     description: "Hangars enabled the deployment of jets. Additional hangars increase jet production."
   },
@@ -59,7 +63,7 @@ export const BUILDINGS = {
     dbname: "oilrig",
     cost: { gold: 150, steel: 150 },
     bonus: 2,
-    max: 10,
+    max: 7,
     requiresResearch: "OIL_DRILLING",
     description: "Oil rigs increase your oil production."
   },
@@ -68,7 +72,7 @@ export const BUILDINGS = {
     dbname: "mickdonalds",
     cost:  { gold: 100, steel: 50 },
     bonus: 2,
-    max: 10,
+    max: 7,
     requiresResearch: "HAPPY_MEALS",
     description: "Mick Donalds increase your food production."
   },
@@ -77,7 +81,7 @@ export const BUILDINGS = {
     dbname: "bank",
     cost:  { gold: 150, steel: 50 },
     bonus: 2,
-    max: 10,
+    max: 4,
     requiresResearch: "BANKING",
     description: "Banks increase your gold income."
   },
@@ -86,7 +90,7 @@ export const BUILDINGS = {
     dbname: "depot",
     cost: { gold: 350, steel: 500 },
     bonus: 1,
-    max: 10,
+    max: 3,
     requiresResearch: "MANUFACTURING",
     description: "Depots enabled the deployment of tanks. Additional depots increase tank production."
   }
@@ -151,9 +155,9 @@ export const RESEARCH = {
 };
 
 export const SELL_RATES = {
-  food: 1, 
-  oil: 3,  
-  steel: 2,
+  food: 0.25, 
+  oil: 0.75,  
+  steel: 0.5,
 };
 
 export const DEPLOY_COSTS = {

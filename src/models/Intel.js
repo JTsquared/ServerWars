@@ -1,47 +1,11 @@
-// // models/Intel.js
-// import mongoose from "mongoose";
-
-// const intelSchema = new mongoose.Schema({
-//   spyingNationId: { type: String, required: true },
-//   targetNationId: { type: String, required: true },
-//   report: {
-//     nationName: String,
-//     population: Number,
-//     cities: Number,
-//     resources: {
-//       food: Number,
-//       steel: Number,
-//       gold: Number,
-//       oil: Number,
-//     },
-//     military: {
-//       troops: Number,
-//       tanks: Number,
-//       jets: Number,
-//     },
-//     buildings: {
-//       city: Number,
-//       barracks: Number,
-//       factory: Number,
-//       airbase: Number,
-//     },
-//   },
-//   failedAttempts: { type: Number, default: 0 },
-//   lastAttemptAt: { type: Date, default: null },
-// }, { timestamps: true });
-
-// intelSchema.index({ spyingNationId: 1, targetNationId: 1 }, { unique: true });
-
-// export default mongoose.model("Intel", intelSchema);
-
-
+// models/Intel.js
 import mongoose from "mongoose";
 
 const intelSchema = new mongoose.Schema({
-  spyingNationId: { type: String, required: true }, // "you"
-  targetNationId: { type: String, required: true }, // "omg"
-  
-  nationName: { type: String, required: true }, // OMG
+  spyingNationId: { type: String, required: true }, // the attacker/explorer nation
+  targetNationId: { type: String, required: true }, // the nation being observed/attacked
+
+  nationName: { type: String, required: true },
   population: { type: Number, default: null },
   playerCount: { type: Number, default: null },
 
@@ -78,8 +42,17 @@ const intelSchema = new mongoose.Schema({
     banking: { type: Boolean, default: null },
     shit_coins: { type: Boolean, default: null }
   },
-  failedAttempts: { type: Number, default: 0 },
-  lastAttemptAt: { type: Date, default: null },
+
+  // separate counters & timestamps for each action type
+  failedAttemptsSpy: { type: Number, default: 0 },
+  lastAttemptedAtSpy: { type: Date, default: null },
+
+  failedAttemptsSabotage: { type: Number, default: 0 },
+  lastAttemptedAtSabotage: { type: Date, default: null },
+
+  failedAttemptsHack: { type: Number, default: 0 },
+  lastAttemptedAtHack: { type: Date, default: null },
+
 }, { timestamps: true });
 
 export default mongoose.models.Intel || mongoose.model("Intel", intelSchema);

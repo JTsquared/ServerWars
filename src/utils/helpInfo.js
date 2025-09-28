@@ -81,7 +81,7 @@ export const helpInfo = {
     },
     surveyreport: {
       short: "Get reports on surveyed tiles.",
-      long: "Use `/surveyreport` to review previously surveyed tiles, including resource info, if it has been settled by a city, and the tileId. Useful for planning where to settle cities or determine which tiles to attack, spy, or sabatoge.",
+      long: "Use `/surveyreport` to review previously surveyed tiles, including resource info, if it has been settled by a city, and the tileId. Useful for planning where to settle cities or determine which tiles to attack, spy, or sabotage.",
     },
   };
   
