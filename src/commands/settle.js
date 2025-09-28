@@ -39,11 +39,13 @@ export async function execute(interaction) {
 
   const politicalRole = interaction.guild.roles.cache.find(r => r.name === "Political Leader");
   const hasDiscordRole = politicalRole && interaction.member.roles.cache.has(politicalRole.id);
-  
   const isInternalChiefScout = nation.leadership.chiefScout.userId === interaction.user.id;
-  
   if (!hasDiscordRole && !isInternalChiefScout) {
     return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may settle a new city.");
+  }
+
+  if (!checkPermissions(interaction, target, "Explorer")) {
+    return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may handle foreign relations.");
   }
 
   const tileId = interaction.options.getString("tile");

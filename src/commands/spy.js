@@ -51,6 +51,13 @@ export async function execute(interaction) {
     targetNationId: targetNation.serverId
   });
 
+  if (!canUseResourceCommand(player)) {
+    return interaction.reply({
+      content: "⏳ You must wait before using another resource command.",
+      ephemeral: true,
+    });
+  }
+
   const spy_cooldown = parseInt(process.env.SPY_COOLDOWN_MS || "14400000", 10);
   const secondsLeft = getNationalCooldownTime(nation, "spy", spy_cooldown);
   if (secondsLeft > 0) {
@@ -78,10 +85,10 @@ export async function execute(interaction) {
         spyingNationId: nation.serverId,
         targetNationId: targetNation.serverId,
         nationName: targetNation.name,
-        knownCities: [] // exploration may have populated this earlier
+        knownCities: [] // only empty on very first creation
       });
     }
-
+  
     // Update with full spy info
     intel.nationName = targetNation.name;
     intel.population = targetNation.population;
@@ -90,17 +97,22 @@ export async function execute(interaction) {
     intel.military = targetNation.military;
     intel.buildings = targetNation.buildings;
     intel.research = targetNation.research || {};
-    intel.failedAttempts = 0;
-    intel.lastAttemptedAt = new Date();
-
+    intel.failedAttemptsSpy = 0;
+    intel.lastAttemptedAtSpy = new Date();
+  
+    // 🚨 Preserve knownCities instead of overwriting
+    if (intel.isModified("knownCities") === false) {
+      intel.knownCities = intel.knownCities || [];
+    }
+  
     await intel.save();
     await player.save();
-
+  
     let reply = `🕵️ Your spies successfully infiltrated **${targetNation.name}** and gathered intel!\n` +
                 `Use \`/intelreport\` to view the latest reports.\n` +
                 `+${EXP_GAIN.DIPLOMAT} Diplomat EXP (Current: ${player.exp.diplomat})`;
     if (rankUpMsg) reply += `\n${rankUpMsg}`;
-
+  
     return interaction.reply(reply);
   } else {
     // Fail — increment attempts or create record
@@ -110,16 +122,17 @@ export async function execute(interaction) {
         targetNationId: targetNation.serverId,
         nationName: targetNation.name,
         knownCities: [],
-        failedAttempts: 0
+        failedAttempts: 0,
+        lastAttemptedAtSpy: null,
       });
     }
 
-    intel.failedAttempts = (intel.failedAttempts || 0) + 1;
-    intel.lastAttemptedAt = new Date();
+    intel.failedAttemptsSpy = (intel.failedAttemptsSpy || 0) + 1;
+    intel.lastAttemptedAtSpy = new Date();
     await intel.save();
 
     // If 4 fails, notify target & reset
-    if (intel.failedAttempts >= 4) {
+    if (intel.failedAttemptsSpy >= 4) {
       const targetGuild = interaction.client.guilds.cache.get(targetNation.serverId);
       if (targetGuild) {
         const notifyChannel = targetGuild.channels.cache.find(
@@ -129,8 +142,8 @@ export async function execute(interaction) {
           notifyChannel.send(`🚨 Our defenses have detected repeated spy attempts from **${nation.name}**!`);
         }
       }
-
-      intel.failedAttempts = 0;
+    
+      intel.failedAttemptsSpy = 0;
       await intel.save();
     }
 

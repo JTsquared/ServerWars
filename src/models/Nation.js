@@ -62,7 +62,13 @@ const nationSchema = new mongoose.Schema({
 
   cooldowns: {
     launchshitcoin: { type: Number, default: 0 },
-    spy: { type: Number, default: 0 }
+    spy: { type: Number, default: 0 },
+    sabotage: { type: Number, default: 0 },
+    hack: { type: Number, default: 0 },
+  },
+
+  hacks: {
+    bankDisabledUntil: { type: Date, default: null }
   },
 
   playerCount: { type: Number, default: 0 }

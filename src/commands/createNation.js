@@ -22,16 +22,6 @@ export async function execute(interaction) {
 
   const name = interaction.options.getString("name");
 
-  const nation = new Nation({
-    serverId: interaction.guild.id,
-    name,
-    playerCount: 0,
-    tilesDiscovered: 1, // first tile discovered
-    // tilesSurveyed could be dynamic or added here if you want
-  });
-
-  await nation.save();
-
   // --- Create the initial tile for the nation ---
   // Determine next available tileId (1..WORLD_TILES)
   // const WORLD_TILES = parseInt(process.env.WORLD_TILES || "1000", 10);
@@ -51,6 +41,16 @@ export async function execute(interaction) {
   if (!tileId) {
     return interaction.reply("❌ All world tiles have been allocated. Cannot create a nation.");
   }
+
+  const nation = new Nation({
+    serverId: interaction.guild.id,
+    name,
+    playerCount: 0,
+    tilesDiscovered: 1, // first tile discovered
+    // tilesSurveyed could be dynamic or added here if you want
+  });
+
+  await nation.save();
 
   // Generate tile resources (guaranteed)
   const fertility = Math.floor(Math.random() * 3); // 0-2
@@ -101,6 +101,22 @@ export async function execute(interaction) {
 
   // Assign Treasury role to the command invoker (default until reassigned)
   await interaction.member.roles.add(financeRole);
+
+  const channel = interaction.guild.channels.cache.find(
+    c =>
+      c.isTextBased() &&
+      !c.isThread() &&
+      c.permissionsFor(interaction.guild.members.me)?.has("SendMessages")
+  );
+  
+  if (channel) {
+    await Config.findOneAndUpdate(
+      { serverId: interaction.guild.id },
+      { defaultChannelId: channel.id },
+      { upsert: true }
+    );
+    channelMap.set(interaction.guild.id, channel.id);
+  }
 
   await interaction.reply(
     `🏰 The nation of **${name}** has been founded! ${interaction.user.username} has been assigned the Political Leader role.\n`
