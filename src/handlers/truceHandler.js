@@ -1,7 +1,7 @@
 // src/handlers/truceHandler.js
 import Truce from "../models/Truce.js";
 import Nation from "../models/Nation.js";
-import { checkPermissions } from "../utils/gameUtils.js";
+import { checkPermissions, getServerWarsChannel } from "../utils/gameUtils.js";
 
 export async function handleTruceButton(interaction) {
   const [action, truceId] = interaction.customId.split("_").slice(1); // "accept" / "reject", truceId
@@ -47,24 +47,18 @@ export async function handleTruceButton(interaction) {
       requester.resources[truce.tributeType] -= truce.tributeAmount;
       target.resources[truce.tributeType] += truce.tributeAmount;
     }
-
+  
     truce.status = "accepted";
     truce.startTime = new Date();
     truce.endTime = new Date(Date.now() + (truce.effectiveHours || 24) * 60 * 60 * 1000);
-
     await Promise.all([requester.save(), target.save(), truce.save()]);
-
-    console.log('Truce accepted between ' + requester.name + ' and ' + target.name);
-    console.log('requester serverId: ' + requester.serverId);
+  
+    // Notify requester guild with a NEW message
     const requesterGuild = interaction.client.guilds.cache.get(requester.serverId);
-    console.log(`Guild found: ${requesterGuild?.name}, ID: ${requesterGuild?.id}`);
-
     if (requesterGuild) {
-      const systemChannel = requesterGuild.systemChannel || requesterGuild.channels.cache.find(c => c.isTextBased());
-      console.log('systemChannel: ' + systemChannel);
-      if (systemChannel) {
-        console.log('Sending truce acceptance message to requester nation');
-        systemChannel.send(
+      const channel = getServerWarsChannel(requesterGuild);
+      if (channel) {
+        channel.send(
           `🤝 Your truce offer to **${target.name}** was accepted${
             truce.tributeAmount > 0
               ? `, and ${truce.tributeAmount} ${truce.tributeType} was transferred as tribute.`
@@ -74,7 +68,7 @@ export async function handleTruceButton(interaction) {
       }
     }
   
-    // Update the interaction in the target guild
+    // Still update target guild’s button message to remove components
     return interaction.update({
       content: `✅ Truce accepted${
         truce.tributeAmount > 0
@@ -84,14 +78,27 @@ export async function handleTruceButton(interaction) {
       components: []
     });
   }
-
+  
   if (action === "reject") {
     truce.status = "rejected";
     await truce.save();
-
+  
+    // Notify requester guild with a NEW message
+    const requesterGuild = interaction.client.guilds.cache.get(requester.serverId);
+    if (requesterGuild) {
+      const channel = getServerWarsChannel(requesterGuild);
+      if (channel) {
+        channel.send(
+          `❌ Your truce offer to **${target.name}** was rejected.`
+        );
+      }
+    }
+  
+    // Update target guild’s message just to disable buttons
     return interaction.update({
       content: "❌ Truce rejected.",
       components: []
     });
   }
+  
 }

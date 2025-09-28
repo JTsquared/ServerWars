@@ -56,6 +56,26 @@ export async function execute(interaction) {
     return interaction.reply("❌ Target nation not found.");
   }
 
+  const activeTruce = await Truce.findOne({
+    $or: [
+      { requesterNationId: nation.serverId, targetNationId: targetNation.serverId },
+      { requesterNationId: targetNation.serverId, targetNationId: nation.serverId }
+    ],
+    status: "accepted",
+    endTime: { $gt: new Date() }
+  });
+  
+  if (activeTruce) {
+    const remainingMs = activeTruce.endTime.getTime() - Date.now();
+    const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+    const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+    return interaction.reply({
+      content: `🚫 You cannot attack **${targetNation.name}** while a truce is in effect. Time remaining: ${hours}h ${minutes}m.`,
+      ephemeral: true
+    });
+  }
+
   // Nation-level cooldown
   const attackCooldown = parseInt(process.env.ATTACK_COOLDOWN_MS || "86400000", 10);
   const secondsLeft = getNationalCooldownTime(nation, "attack", attackCooldown);
