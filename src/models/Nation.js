@@ -65,6 +65,7 @@ const nationSchema = new mongoose.Schema({
     spy: { type: Number, default: 0 },
     sabotage: { type: Number, default: 0 },
     hack: { type: Number, default: 0 },
+    envoy: { type: Number, default: 0 },
   },
 
   hacks: {

@@ -168,6 +168,8 @@ export async function execute(interaction) {
 
   await truce.save();
 
+  const rankUpMsg = await grantExp(player, "diplomat", EXP_GAIN.DIPLOMAT, nation);
+
   // Build embed
   const embed = new EmbedBuilder()
     .setTitle("🤝 Truce Proposal")
@@ -178,6 +180,8 @@ export async function execute(interaction) {
       { name: "Offer Expires", value: `<t:${Math.floor(offerExpiresAt.getTime() / 1000)}:R>`, inline: true }
     )
     .setColor("Blue");
+
+  if (rankUpMsg) embed.addFields({ name: "XP", value: rankUpMsg });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()

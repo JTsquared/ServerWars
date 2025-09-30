@@ -20,6 +20,7 @@ export const SABOTAGE_SUCCESS_CHANCE = 0.20;
 export const HACK_SUCCESS_CHANCE = 0.20;
 export const HACK_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const HACK_ALERT_THRESHOLD = 5;
+export const ENVOY_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
 // 🏗️ Building Costs & Bonuses
 export const BUILDINGS = {
