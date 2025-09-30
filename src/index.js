@@ -3,6 +3,8 @@ import { config } from "dotenv";
 import fs from "fs";
 import { connectDB } from "./db.js";
 import { handleTruceButton } from "./handlers/truceHandler.js";
+import { handleTradeButton } from "./handlers/tradeHandler.js";
+import { handleTradeCounterModal } from "./handlers/tradeCounterHandler.js";
 import Config from "./models/Config.js";
 import { channelMap } from "./utils/gameUtils.js";
 
@@ -35,13 +37,13 @@ async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   console.log("🔄 Registering slash commands...");
 
-  if (process.env.GUILD_ID) {
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-      { body: commands }
-    );
-    console.log("✅ Guild commands registered (instant).");
-  }
+  // if (process.env.GUILD_ID) {
+  //   await rest.put(
+  //     Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+  //     { body: commands }
+  //   );
+  //   console.log("✅ Guild commands registered (instant).");
+  // }
 
   await rest.put(
     Routes.applicationCommands(process.env.CLIENT_ID),
@@ -49,21 +51,6 @@ async function registerCommands() {
   );
   console.log("✅ Global commands registered (may take up to 1h).");
 }
-
-// Handle interactions
-// client.on("interactionCreate", async interaction => {
-//   if (!interaction.isChatInputCommand()) return;
-
-//   const command = client.commands.get(interaction.commandName);
-//   if (!command) return;
-
-//   try {
-//     await command.execute(interaction);
-//   } catch (err) {
-//     console.error(err);
-//     await interaction.reply({ content: "⚠️ Error executing command.", ephemeral: true });
-//   }
-// });
 
 client.on("interactionCreate", async interaction => {
   if (interaction.isChatInputCommand()) {
@@ -79,6 +66,12 @@ client.on("interactionCreate", async interaction => {
   } else if (interaction.isButton()) {
     if (interaction.customId.startsWith("truce_")) {
       return handleTruceButton(interaction); // imported from truce.js
+    } else if (interaction.customId.startsWith("trade_")) {
+      return handleTradeButton(interaction);
+    }
+  } else if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith("tradeCounter_")) {
+      return handleTradeCounterModal(interaction);
     }
   }
 });

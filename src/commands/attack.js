@@ -102,6 +102,7 @@ export async function execute(interaction) {
     return interaction.reply("⚔️ Your military is too weakened to launch an attack.");
   }
 
+  const rankUpMsg = await grantExp(player, "military", EXP_GAIN.MILITARY, nation);
   const defenderPower = calcNationPower(targetNation);
 
   // Outcome roll
@@ -246,6 +247,7 @@ const defensePercent = Math.min(moralePercent, powerPercent);
     attackerEmbed.fields.push({ name: "City fallen", value: `🏙️ The city has been captured` });
   }
 
+  if (rankUpMsg) attackerEmbed.addFields({ name: "XP", value: rankUpMsg });
   await interaction.reply({ embeds: [attackerEmbed] });
 
   // Defender notification (always send)

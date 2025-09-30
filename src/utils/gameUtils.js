@@ -261,6 +261,15 @@ export function checkPermissions(interaction, nation, roleType) {
   return allowed;
 }
 
+export function getResourceCategory(nation, item) {
+  console.log("Determining category for item:", item);
+  if (nation.resources[item] !== undefined) return "resources";
+  console.log("Not a resource.");
+  if (nation.military[item] !== undefined) return "military";
+  console.log("Not military.");
+  return null; // unknown item
+}
+
 
 // simple shared registry
 export const channelMap = new Map();
