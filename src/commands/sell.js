@@ -6,6 +6,7 @@ import { SELL_RATES, EXP_GAIN } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
 import { economistTiers } from "../data/tiers.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("sell")
@@ -30,6 +31,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

@@ -4,6 +4,7 @@ import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { checkPermissions, getServerWarsChannel, getNationalCooldownTime, setNationCooldown, grantExp } from "../utils/gameUtils.js";
 import { ENVOY_COOLDOWN_MS, EXP_GAIN } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("envoy")
@@ -20,6 +21,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) {
     return interaction.reply("⚠️ You must `/join` your server’s campaign before exploring!");

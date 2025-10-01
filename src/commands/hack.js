@@ -13,6 +13,7 @@ import {
 } from "../utils/gameUtils.js";
 import { EXP_GAIN } from "../utils/constants.js";
 import { HACK_DURATION_MS, HACK_SUCCESS_CHANCE, HACK_ALERT_THRESHOLD } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("hack")
@@ -25,6 +26,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+  
   // basic lookups
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

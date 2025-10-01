@@ -7,12 +7,16 @@ import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
 import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
 import { WORLD_TILES, EXP_GAIN } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("survey")
   .setDescription("Survey unexplored tiles for your nation.");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) {
     return interaction.reply("⚠️ You must `/join` your nation before surveying!");

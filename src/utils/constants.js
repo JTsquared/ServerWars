@@ -22,6 +22,37 @@ export const HACK_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const HACK_ALERT_THRESHOLD = 5;
 export const ENVOY_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
+export const NATION_TRAITS = {
+  STEALTHY: {
+    trait: "Stealthy",
+    description: "Increases spy success chance by 10% and the alert threshold by 1.",
+  },
+  AGRICULTURAL: {
+    trait: "Agricultural",
+    description: "Increases food production by 15%",
+  },
+  INDUSTRIOUS: {
+    trait: "Industrious",
+    description: "Increases steel production by 10% and oil production by 5%",
+  },
+  MILITARISTIC: {
+    trait: "Militaristic",
+    description: "Reduces the amount of resources needed to deploy military units by 25%",
+  },
+  GREGARIOUS: {
+    trait: "Gregarious",
+    description: "Farming increases population growth by 25%",
+  },
+  NOMADIC: {
+    trait: "Nomadic",
+    description: "20% chance of discovering an extra tile when exploring",
+  },
+  NEGOTIATOR: {
+    trait: "Negotiator",
+    description: "Decreases the cost of buildings by 10% and increases sell rates by 15%",
+  }
+}
+
 // 🏗️ Building Costs & Bonuses
 export const BUILDINGS = {
   CITY: {

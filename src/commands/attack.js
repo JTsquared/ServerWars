@@ -11,6 +11,7 @@ import {
   canUseResourceCommand
 } from "../utils/gameUtils.js";
 import { POPULATION_PER_CITY } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 const MIN_MILITARY_POWER_PER_CITY = parseInt(process.env.MIN_MILITARY_POWER_PER_CITY || "100", 10);
 
@@ -29,6 +30,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

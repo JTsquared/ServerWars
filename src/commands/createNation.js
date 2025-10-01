@@ -2,7 +2,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits, Colors } from "discord.js";
 import Nation from "../models/Nation.js";
 import Tile from "../models/Tile.js";
-import { WORLD_TILES } from "../utils/constants.js";
+import { NATION_TRAITS, WORLD_TILES } from "../utils/constants.js";
 
 export const data = new SlashCommandBuilder()
   .setName("createnation")
@@ -10,8 +10,18 @@ export const data = new SlashCommandBuilder()
   .addStringOption(option =>
     option.setName("name")
       .setDescription("The name of your nation")
+      .setRequired(true))
+  .addStringOption(option =>
+    option.setName("trait")
+      .setDescription("Pick your nation’s trait")
       .setRequired(true)
-  )
+      .addChoices(
+        ...Object.entries(NATION_TRAITS)
+          .map(([key, value]) => ({
+            name: value.trait,
+            value: key, // 👈 use key (e.g. "BANK"), not lowercased
+          }))
+      ))
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
@@ -21,6 +31,7 @@ export async function execute(interaction) {
   }
 
   const name = interaction.options.getString("name");
+  const trait = interaction.options.getString("trait");
 
   // --- Create the initial tile for the nation ---
   // Determine next available tileId (1..WORLD_TILES)
@@ -45,6 +56,7 @@ export async function execute(interaction) {
   const nation = new Nation({
     serverId: interaction.guild.id,
     name,
+    trait,
     playerCount: 0,
     tilesDiscovered: 1, // first tile discovered
     // tilesSurveyed could be dynamic or added here if you want
@@ -119,6 +131,6 @@ export async function execute(interaction) {
   }
 
   await interaction.reply(
-    `🏰 The nation of **${name}** has been founded! ${interaction.user.username} has been assigned the Political Leader role.\n`
+    `🏰 The nation of **${name}** has been founded! ${interaction.user.username} has been assigned the Political Leader role.\nYour nation has chosen the ${trait} trait.`
   );
 }

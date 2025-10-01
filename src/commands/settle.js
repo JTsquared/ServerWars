@@ -3,8 +3,9 @@ import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import Tile from "../models/Tile.js";
-import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
+import { canUseResourceCommand, setResourceCooldown, grantExp, checkPermissions } from "../utils/gameUtils.js";
 import { POPULATION_PER_CITY, EXP_GAIN, BUILDINGS } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("settle")
@@ -23,6 +24,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");
@@ -44,7 +48,7 @@ export async function execute(interaction) {
     return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may settle a new city.");
   }
 
-  if (!checkPermissions(interaction, target, "Explorer")) {
+  if (!checkPermissions(interaction, nation, "Explorer")) {
     return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may handle foreign relations.");
   }
 

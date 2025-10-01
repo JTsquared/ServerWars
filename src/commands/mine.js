@@ -14,12 +14,16 @@ import {
   grantExp,
 } from "../utils/gameUtils.js";
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("mine")
   .setDescription("Mine steel and gold for your nation (+economist exp, cooldown applies).");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) return interaction.reply("⚠️ You must `/join` your server’s campaign before exploring!");
 

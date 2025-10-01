@@ -14,6 +14,7 @@ import {
   getNationalCooldownTime,
   setNationCooldown
 } from "../utils/gameUtils.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 /**
  * Helper: remove military power from a nation using greedy "change" approach.
@@ -64,6 +65,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");
 

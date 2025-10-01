@@ -6,12 +6,16 @@ import { canUseResourceCommand, getNationalCooldownTime, setResourceCooldown, se
 import { EXP_GAIN, RESEARCH } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("launchshitcoin")
   .setDescription("Attempt to launch your own cryptocurrency.");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

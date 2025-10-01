@@ -12,6 +12,7 @@ import {
 } from "../utils/gameUtils.js";
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
 import { EXP_GAIN } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 const ECONOMIST_EXP_GAIN = 15;
 
@@ -20,6 +21,9 @@ export const data = new SlashCommandBuilder()
   .setDescription("Harvest food for your nation (+economist exp, 1h global cooldown).");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   // 1) user & cooldown checks
   const player = await getUserByDiscordId(interaction.user.id);
   if (!player) {
