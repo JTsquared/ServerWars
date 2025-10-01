@@ -1,12 +1,16 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import { WORLD_TILES, BUILDINGS } from "../utils/constants.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("stats")
   .setDescription("Check your nation's collective stats");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation is not yet established. Use `/join` first.");

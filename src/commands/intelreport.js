@@ -8,12 +8,16 @@ import {
 } from "discord.js";
 import Nation from "../models/Nation.js";
 import Intel from "../models/Intel.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("intelreport")
   .setDescription("View your nation’s gathered intel on rivals.");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

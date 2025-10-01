@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const nationSchema = new mongoose.Schema({
   serverId: { type: String, required: true, unique: true },
   name: { type: String, default: "Unnamed Nation" },
+  trait: { type: String, enum: ["Stealthy", "Agricultural", "Industrious", "Militaristic", "Gregarious", "Nomadic", "Negotiator"], default: null },
 
   population: { type: Number, default: 1 },
 

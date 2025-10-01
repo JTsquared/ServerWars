@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, But
 import Nation from "../models/Nation.js";
 import Truce from "../models/Truce.js";
 import { getServerWarsChannel, checkPermissions } from "../utils/gameUtils.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("truce")
@@ -34,6 +35,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const requester = await Nation.findOne({ serverId: interaction.guild.id });
   if (!requester) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

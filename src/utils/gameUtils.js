@@ -270,7 +270,6 @@ export function getResourceCategory(nation, item) {
   return null; // unknown item
 }
 
-
 // simple shared registry
 export const channelMap = new Map();
 

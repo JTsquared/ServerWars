@@ -10,6 +10,7 @@ import {
   EXP_GAIN
 } from "../utils/constants.js";
 import { grantExp, setResourceCooldown, getNationalCooldownTime, setNationCooldown } from "../utils/gameUtils.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("spy")
@@ -21,6 +22,9 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) {
     return interaction.reply("❌ Your nation does not exist. Use `/createNation` first.");

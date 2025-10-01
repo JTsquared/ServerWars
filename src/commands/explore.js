@@ -10,6 +10,7 @@ import {
 } from "../utils/gameUtils.js";
 import { EXP_GAIN, WORLD_TILES } from "../utils/constants.js";
 import Intel from "../models/Intel.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 const SCOUT_EXP_GAIN = 15;
 
@@ -18,6 +19,9 @@ export const data = new SlashCommandBuilder()
   .setDescription("Explore new lands for your nation.");
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
+
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) {
     return interaction.reply("⚠️ You must `/join` your server’s campaign before exploring!");

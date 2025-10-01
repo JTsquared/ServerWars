@@ -3,6 +3,7 @@ import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { RESEARCH } from "../utils/constants.js";
 import { SlashCommandBuilder } from "discord.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("research")
@@ -21,6 +22,9 @@ export const data = new SlashCommandBuilder()
   );
 
   export async function execute(interaction) {
+
+    await checkWorldEvents();
+
     const userId = interaction.user.id;
     const field = interaction.options.getString("field");
   

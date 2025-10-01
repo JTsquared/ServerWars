@@ -4,6 +4,7 @@ import Nation from "../models/Nation.js";
 import Trade from "../models/Trade.js"; // you'll need a Trade model, similar to Truce
 import Player from "../models/Player.js";
 import { getServerWarsChannel, checkPermissions, getResourceCategory } from "../utils/gameUtils.js";
+import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
   .setName("trade")
@@ -53,6 +54,8 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction) {
+
+  await checkWorldEvents();
 
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) {

@@ -7,6 +7,8 @@ import { handleTradeButton } from "./handlers/tradeHandler.js";
 import { handleTradeCounterModal } from "./handlers/tradeCounterHandler.js";
 import Config from "./models/Config.js";
 import { channelMap } from "./utils/gameUtils.js";
+import eventBus from "./utils/eventbus.js";
+import { processPendingEvent } from "./utils/worldEvents.js";
 
 config();
 
@@ -83,4 +85,23 @@ client.once("ready", async () => {
   await loadChannelMap();
 });
 
+let eventScheduled = false;
+eventBus.on("worldEventDue", async event => {
+  if (eventScheduled) return; // prevent duplicate timers
+
+  eventScheduled = true;
+
+  console.log("⚡ World event scheduled, triggering in 30s...");
+  setTimeout(async () => {
+    try {
+      await processPendingEvent(client);
+    } catch (err) {
+      console.error("Error processing event:", err);
+    } finally {
+      eventScheduled = false; // reset for future events
+    }
+  }, 30 * 1000);
+});
+
 client.login(process.env.DISCORD_TOKEN);
+
