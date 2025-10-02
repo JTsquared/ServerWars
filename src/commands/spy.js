@@ -7,7 +7,8 @@ import Intel from "../models/Intel.js";
 import {
   SPY_COOLDOWN_MS,
   SPY_SUCCESS_CHANCE,
-  EXP_GAIN
+  EXP_GAIN,
+  NATION_TRAITS
 } from "../utils/constants.js";
 import { grantExp, setResourceCooldown, getNationalCooldownTime, setNationCooldown } from "../utils/gameUtils.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
@@ -75,7 +76,12 @@ export async function execute(interaction) {
   }
 
   // Roll success/failure
-  const success = Math.random() < SPY_SUCCESS_CHANCE;
+  let successChance = SPY_SUCCESS_CHANCE;
+  // STEALTHY trait: bonus to spy success
+  if (nation.trait === "STEALTHY") {
+    successChance += NATION_TRAITS.STEALTHY.spySuccessBonus;
+  }
+  const success = Math.random() < successChance;
 
   // Give EXP + cooldown
   const rankUpMsg = await grantExp(player, "diplomat", EXP_GAIN.DIPLOMAT, nation);
@@ -135,8 +141,13 @@ export async function execute(interaction) {
     intel.lastAttemptedAtSpy = new Date();
     await intel.save();
 
-    // If 4 fails, notify target & reset
-    if (intel.failedAttemptsSpy >= 4) {
+    // If threshold reached, notify target & reset
+    // STEALTHY trait: bonus to alert threshold
+    let alertThreshold = 4;
+    if (nation.trait === "STEALTHY") {
+      alertThreshold += NATION_TRAITS.STEALTHY.alertThresholdBonus;
+    }
+    if (intel.failedAttemptsSpy >= alertThreshold) {
       const targetGuild = interaction.client.guilds.cache.get(targetNation.serverId);
       if (targetGuild) {
         const notifyChannel = targetGuild.channels.cache.find(

@@ -4,7 +4,7 @@ import { getUserByDiscordId, saveUser } from "../data/userData.js";
 import { getOrCreateNation, saveNation } from "../data/nationData.js";
 import Player from "../models/Player.js";
 import Nation from "../models/Nation.js";
-import { EXP_GAIN } from "../utils/constants.js";
+import { EXP_GAIN, NATION_TRAITS } from "../utils/constants.js";
 import Tile from "../models/Tile.js";
 import {
   canUseResourceCommand,
@@ -40,8 +40,13 @@ export async function execute(interaction) {
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
 
   const ownedTiles = await Tile.find({ "city.exists": true, "city.owner": nation.serverId });
-  const steelYield = getResourceYield(player.exp.economist, economistTiers, nation, "steel", ownedTiles);
+  let steelYield = getResourceYield(player.exp.economist, economistTiers, nation, "steel", ownedTiles);
   const goldYield = getResourceYield(player.exp.economist, economistTiers, nation, "gold", ownedTiles);
+
+  // INDUSTRIOUS trait: steel production bonus
+  if (nation.trait === "INDUSTRIOUS") {
+    steelYield = Math.floor(steelYield * (1 + NATION_TRAITS.INDUSTRIOUS.steelProductionBonus));
+  }
 
   nation.resources.steel = (nation.resources.steel ?? 0) + steelYield;
   nation.resources.gold = (nation.resources.gold ?? 0) + goldYield;

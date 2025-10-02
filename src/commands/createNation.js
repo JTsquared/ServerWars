@@ -122,7 +122,7 @@ export async function execute(interaction) {
   );
   
   if (channel) {
-    await Config.findOneAndUpdate(
+    await ServerConfig.findOneAndUpdate(
       { serverId: interaction.guild.id },
       { defaultChannelId: channel.id },
       { upsert: true }
@@ -130,7 +130,8 @@ export async function execute(interaction) {
     channelMap.set(interaction.guild.id, channel.id);
   }
 
+  const traitName = NATION_TRAITS[trait].trait;
   await interaction.reply(
-    `🏰 The nation of **${name}** has been founded! ${interaction.user.username} has been assigned the Political Leader role.\nYour nation has chosen the ${trait} trait.`
+    `🏰 The nation of **${name}** has been founded! ${interaction.user.username} has been assigned the Political Leader role.\nYour nation has chosen the **${traitName}** trait.`
   );
 }

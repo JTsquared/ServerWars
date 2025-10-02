@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { canUseResourceCommand, setResourceCooldown, getResourceYield, grantExp } from "../utils/gameUtils.js";
-import { EXP_GAIN, BUILDINGS, POPULATION_PER_CITY, DEPLOY_COSTS } from "../utils/constants.js";
+import { EXP_GAIN, BUILDINGS, POPULATION_PER_CITY, DEPLOY_COSTS, NATION_TRAITS } from "../utils/constants.js";
 import { militaryTiers } from "../data/tiers.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
@@ -159,9 +159,17 @@ export async function execute(interaction) {
 
 function deductResourcesForDeployment(nation, unitType, totalDeployed) {
   const cost = DEPLOY_COSTS[unitType.toUpperCase()];
-  const totalSteelCost = cost.steel * totalDeployed;
-  const totalOilCost   = cost.oil * totalDeployed;
-  const totalFoodCost  = cost.food * totalDeployed;
+  let totalSteelCost = cost.steel * totalDeployed;
+  let totalOilCost   = cost.oil * totalDeployed;
+  let totalFoodCost  = cost.food * totalDeployed;
+
+  // MILITARISTIC trait: deployment cost reduction
+  if (nation.trait === "MILITARISTIC") {
+    const reduction = NATION_TRAITS.MILITARISTIC.deploymentCostReduction;
+    totalSteelCost = Math.floor(totalSteelCost * (1 - reduction));
+    totalOilCost = Math.floor(totalOilCost * (1 - reduction));
+    totalFoodCost = Math.floor(totalFoodCost * (1 - reduction));
+  }
 
   // Check if nation has enough resources
   if (nation.resources.steel < totalSteelCost ||

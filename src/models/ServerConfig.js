@@ -6,5 +6,5 @@ const configSchema = new mongoose.Schema({
   defaultChannelId: { type: String, default: null },
 }, { timestamps: true });
 
-const Config = mongoose.models.Config || mongoose.model("Config", configSchema);
-export default Config;
+const ServerConfig = mongoose.models.ServerConfig || mongoose.model("ServerConfig", configSchema);
+export default ServerConfig;

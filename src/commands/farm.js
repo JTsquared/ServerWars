@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { getUserByDiscordId, saveUser } from "../data/userData.js";
 import { getOrCreateNation, saveNation } from "../data/nationData.js";
-import Config from "../models/Config.js";
+import ServerConfig from "../models/ServerConfig.js";
 import Tile from "../models/Tile.js";
 import {
   canUseResourceCommand,
@@ -11,7 +11,7 @@ import {
   grantExp
 } from "../utils/gameUtils.js";
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
-import { EXP_GAIN } from "../utils/constants.js";
+import { EXP_GAIN, NATION_TRAITS } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
 
 const ECONOMIST_EXP_GAIN = 15;
@@ -53,8 +53,19 @@ export async function execute(interaction) {
   });
 
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
-  const foodYield = getResourceYield(player.exp.economist, economistTiers, nation, "food", ownedTiles);
-  const popIncrease = Math.ceil(foodYield);
+  let foodYield = getResourceYield(player.exp.economist, economistTiers, nation, "food", ownedTiles);
+
+  // AGRICULTURAL trait: food production bonus
+  if (nation.trait === "AGRICULTURAL") {
+    foodYield = Math.floor(foodYield * (1 + NATION_TRAITS.AGRICULTURAL.foodProductionBonus));
+  }
+
+  let popIncrease = Math.ceil(foodYield);
+
+  // GREGARIOUS trait: population growth bonus when farming
+  if (nation.trait === "GREGARIOUS") {
+    popIncrease = Math.floor(popIncrease * (1 + NATION_TRAITS.GREGARIOUS.populationGrowthBonus));
+  }
 
   nation.resources.food = (nation.resources.food || 0) + foodYield;
   nation.population = (nation.population || 0) + popIncrease;
