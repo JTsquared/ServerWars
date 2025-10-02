@@ -8,7 +8,8 @@ import {
   getNationalCooldownTime,
   setNationCooldown,
   setResourceCooldown,
-  canUseResourceCommand
+  canUseResourceCommand,
+  calcNationPower,
 } from "../utils/gameUtils.js";
 import { POPULATION_PER_CITY } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
@@ -290,30 +291,30 @@ const defensePercent = Math.min(moralePercent, powerPercent);
   // done
 }
 
-/** Helper: calc total power (accepts plural keys) */
-function calcNationPower(nation) {
-  // nation.military keys are plural: troops, tanks, jets
-  return (Object.entries(nation.military || {}).reduce((sum, [unit, count]) => {
-    return sum + getUnitPower(unit) * (count || 0);
-  }, 0));
-}
+// /** Helper: calc total power (accepts plural keys) */
+// function calcNationPower(nation) {
+//   // nation.military keys are plural: troops, tanks, jets
+//   return (Object.entries(nation.military || {}).reduce((sum, [unit, count]) => {
+//     return sum + getUnitPower(unit) * (count || 0);
+//   }, 0));
+// }
 
-/** Helper: unit power mapping (accepts plural or singular keys) */
-function getUnitPower(unit) {
-  switch (unit.toLowerCase()) {
-    case "troop":
-    case "troops":
-      return 1;
-    case "tank":
-    case "tanks":
-      return 5;
-    case "jet":
-    case "jets":
-      return 10;
-    default:
-      return 1;
-  }
-}
+// /** Helper: unit power mapping (accepts plural or singular keys) */
+// function getUnitPower(unit) {
+//   switch (unit.toLowerCase()) {
+//     case "troop":
+//     case "troops":
+//       return 1;
+//     case "tank":
+//     case "tanks":
+//       return 5;
+//     case "jet":
+//     case "jets":
+//       return 10;
+//     default:
+//       return 1;
+//   }
+// }
 
 /**
  * Apply losses expensive-first and return breakdown (plural keys).

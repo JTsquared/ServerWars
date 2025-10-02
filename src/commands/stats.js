@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
-import { WORLD_TILES, BUILDINGS } from "../utils/constants.js";
+import { WORLD_TILES, BUILDINGS, NATION_TRAITS } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
@@ -16,10 +16,13 @@ export async function execute(interaction) {
     return interaction.reply("❌ Your nation is not yet established. Use `/join` first.");
   }
 
-  const { resources, military, buildings, research, leadership, name, population, tilesDiscovered } = nation;
+  const { resources, military, buildings, research, leadership, name, population, tilesDiscovered, trait } = nation;
 
   const discoveredNationIds = new Set((nation.discoveredCities || []).map(dc => dc.serverId));
   const discoveredNationCount = discoveredNationIds.size;
+
+  // Format trait display
+  const traitDisplay = trait ? `**${NATION_TRAITS[trait].trait}** - ${NATION_TRAITS[trait].description}` : "None";
 
   // 🏛️ Format Buildings
   const buildingList = Object.entries(buildings)
@@ -47,6 +50,8 @@ export async function execute(interaction) {
     .setTitle(`🌍 Nation Stats: ${name}`)
     .setColor(0x2ecc71)
     .addFields(
+      { name: "✨ Nation Trait", value: traitDisplay, inline: false },
+
       { name: "👥 Population", value: `${population}`, inline: true },
       { name: "🏙️ Cities", value: `${buildings.city || 0}`, inline: true },
       { name: "🗺️ Map Progress", value: `${tilesDiscovered}/${WORLD_TILES} tiles discovered`, inline: true },

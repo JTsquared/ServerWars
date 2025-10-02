@@ -3,7 +3,7 @@ import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
 import { economistTiers } from "../data/tiers.js";
-import { EXP_GAIN, BUILDINGS, RESEARCH } from "../utils/constants.js";
+import { EXP_GAIN, BUILDINGS, RESEARCH, NATION_TRAITS } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
@@ -88,8 +88,15 @@ export async function execute(interaction) {
   // }
 
   const currentCount = nation.buildings[building.dbname] || 0;
-  const scaledGoldCost  = building.cost.gold  * (currentCount + .5);
-  const scaledSteelCost = building.cost.steel * (currentCount + .5);
+  let scaledGoldCost  = building.cost.gold  * (currentCount + .5);
+  let scaledSteelCost = building.cost.steel * (currentCount + .5);
+
+  // NEGOTIATOR trait: building cost reduction
+  if (nation.trait === "NEGOTIATOR") {
+    const reduction = NATION_TRAITS.NEGOTIATOR.buildingCostReduction;
+    scaledGoldCost = Math.floor(scaledGoldCost * (1 - reduction));
+    scaledSteelCost = Math.floor(scaledSteelCost * (1 - reduction));
+  }
 
   if (
     nation.resources.gold < scaledGoldCost ||

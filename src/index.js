@@ -5,7 +5,7 @@ import { connectDB } from "./db.js";
 import { handleTruceButton } from "./handlers/truceHandler.js";
 import { handleTradeButton } from "./handlers/tradeHandler.js";
 import { handleTradeCounterModal } from "./handlers/tradeCounterHandler.js";
-import Config from "./models/Config.js";
+import ServerConfig from "./models/ServerConfig.js";
 import { channelMap } from "./utils/gameUtils.js";
 import eventBus from "./utils/eventbus.js";
 import { processPendingEvent } from "./utils/worldEvents.js";
@@ -25,7 +25,7 @@ for (const file of commandFiles) {
 }
 
 async function loadChannelMap() {
-  const configs = await Config.find();
+  const configs = await ServerConfig.find();
   configs.forEach(cfg => {
     if (cfg.defaultChannelId) {
       channelMap.set(cfg.serverId, cfg.defaultChannelId);
@@ -61,6 +61,7 @@ client.on("interactionCreate", async interaction => {
   
     try {
       await command.execute(interaction);
+      await checkForGameEnd(client, interaction.guildId);
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: "⚠️ Error executing command.", ephemeral: true });

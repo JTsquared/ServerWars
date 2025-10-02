@@ -11,8 +11,7 @@ import {
   setNationCooldown,
   canUseResourceCommand
 } from "../utils/gameUtils.js";
-import { EXP_GAIN } from "../utils/constants.js";
-import { HACK_DURATION_MS, HACK_SUCCESS_CHANCE, HACK_ALERT_THRESHOLD } from "../utils/constants.js";
+import { EXP_GAIN, HACK_DURATION_MS, HACK_SUCCESS_CHANCE, HACK_ALERT_THRESHOLD, NATION_TRAITS } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
@@ -78,7 +77,11 @@ if (!canUseResourceCommand(player)) {
   }
 
   // success chance & hack duration
-  const successChance = parseFloat(HACK_SUCCESS_CHANCE || .20);
+  let successChance = parseFloat(HACK_SUCCESS_CHANCE || .20);
+  // STEALTHY trait: bonus to success chance
+  if (nation.trait === "STEALTHY") {
+    successChance += NATION_TRAITS.STEALTHY.spySuccessBonus;
+  }
   console.log("HACK_SUCCESS_CHANCE", successChance);
   const hackDurationMs = parseInt(HACK_DURATION_MS || "14400000", 10);
 
@@ -154,8 +157,13 @@ if (!canUseResourceCommand(player)) {
     intel.failedAttemptsHack = (intel.failedAttemptsHack || 0) + 1;
     intel.lastAttemptedAtHack = new Date();
 
-    // notify target if threshold reached (4)
-    if ((intel.failedAttemptsHack || 0) >= HACK_ALERT_THRESHOLD) {
+    // notify target if threshold reached
+    // STEALTHY trait: bonus to alert threshold
+    let alertThreshold = HACK_ALERT_THRESHOLD;
+    if (nation.trait === "STEALTHY") {
+      alertThreshold += NATION_TRAITS.STEALTHY.alertThresholdBonus;
+    }
+    if ((intel.failedAttemptsHack || 0) >= alertThreshold) {
       const targetGuild = interaction.client.guilds.cache.get(targetNation.serverId);
       if (targetGuild) {
         const notifyChannel = targetGuild.channels.cache.find(
@@ -175,7 +183,7 @@ if (!canUseResourceCommand(player)) {
       .setTitle(`💻 Hack Failed — ${tile.city.name} (${targetNation.name})`)
       .setDescription(`Your operatives failed to disable bank boosts on **${targetNation.name}**.`)
       .addFields(
-        { name: "Attempts", value: `${intel.failedAttemptsHack || 0} / ${HACK_ALERT_THRESHOLD}`, inline: true },
+        { name: "Attempts", value: `${intel.failedAttemptsHack || 0} / ${alertThreshold}`, inline: true },
         { name: "🎯 Chance", value: `${Math.round(successChance * 100)}%`, inline: true },
         { name: "⏱️ Last Attempt", value: intel.lastAttemptedAtHack ? intel.lastAttemptedAtHack.toISOString() : "N/A", inline: true }
       )

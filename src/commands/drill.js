@@ -4,7 +4,7 @@ import { getOrCreateNation, saveNation } from "../data/nationData.js";
 import Player from "../models/Player.js";
 import Nation from "../models/Nation.js";
 import Tile from "../models/Tile.js";
-import { EXP_GAIN } from "../utils/constants.js";
+import { EXP_GAIN, NATION_TRAITS } from "../utils/constants.js";
 import {
   canUseResourceCommand,
   setResourceCooldown,
@@ -35,7 +35,13 @@ export async function execute(interaction) {
 
   const rankUpMsg = await grantExp(player, "economist", EXP_GAIN.ECONOMIST, nation);
   const ownedTiles = await Tile.find({ "city.exists": true, "city.owner": nation.serverId });
-  const oilYield = getResourceYield(player.exp.economist, economistTiers, nation, "oil", ownedTiles);
+  let oilYield = getResourceYield(player.exp.economist, economistTiers, nation, "oil", ownedTiles);
+
+  // INDUSTRIOUS trait: oil production bonus
+  if (nation.trait === "INDUSTRIOUS") {
+    oilYield = Math.floor(oilYield * (1 + NATION_TRAITS.INDUSTRIOUS.oilProductionBonus));
+  }
+
   nation.resources.oil = (nation.resources.oil || 0) + oilYield;
 
   setResourceCooldown(player);

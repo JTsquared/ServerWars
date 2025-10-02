@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import { canUseResourceCommand, setResourceCooldown, grantExp } from "../utils/gameUtils.js";
-import { SELL_RATES, EXP_GAIN } from "../utils/constants.js";
+import { SELL_RATES, EXP_GAIN, NATION_TRAITS } from "../utils/constants.js";
 import { saveUser } from "../data/userData.js";
 import { saveNation } from "../data/nationData.js";
 import { economistTiers } from "../data/tiers.js";
@@ -78,7 +78,12 @@ export async function execute(interaction) {
   }
 
   // Calculate gold received
-  const goldGained = amount * SELL_RATES[resource];
+  let goldGained = amount * SELL_RATES[resource];
+
+  // NEGOTIATOR trait: sell rate bonus
+  if (nation.trait === "NEGOTIATOR") {
+    goldGained = Math.floor(goldGained * (1 + NATION_TRAITS.NEGOTIATOR.sellRateBonus));
+  }
 
   // Deduct resource and add gold
   nation.resources[resource] -= amount;

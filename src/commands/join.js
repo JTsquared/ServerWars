@@ -3,7 +3,7 @@ import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import Exiled from "../models/Exiled.js";
-import Config from "../models/Config.js";
+import ServerConfig from "../models/ServerConfig.js";
 
 export const data = new SlashCommandBuilder()
   .setName("join")
@@ -30,9 +30,9 @@ export async function execute(interaction) {
     return interaction.reply("⚠️ You are already a citizen of another nation! Use `/retire` first.");
   }
 
-  let config = await Config.findOne({ serverId: interaction.guild.id });
+  let config = await ServerConfig.findOne({ serverId: interaction.guild.id });
   if (!config) {
-    config = new Config({ serverId: interaction.guild.id });
+    config = new ServerConfig({ serverId: interaction.guild.id });
   }
 
   let playerRole = interaction.guild.roles.cache.find(r => r.name === "Server Wars Player");

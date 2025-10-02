@@ -26,30 +26,40 @@ export const NATION_TRAITS = {
   STEALTHY: {
     trait: "Stealthy",
     description: "Increases spy success chance by 10% and the alert threshold by 1.",
+    spySuccessBonus: 0.10,
+    alertThresholdBonus: 1,
   },
   AGRICULTURAL: {
     trait: "Agricultural",
     description: "Increases food production by 15%",
+    foodProductionBonus: 0.15,
   },
   INDUSTRIOUS: {
     trait: "Industrious",
     description: "Increases steel production by 10% and oil production by 5%",
+    steelProductionBonus: 0.10,
+    oilProductionBonus: 0.05,
   },
   MILITARISTIC: {
     trait: "Militaristic",
     description: "Reduces the amount of resources needed to deploy military units by 25%",
+    deploymentCostReduction: 0.25,
   },
   GREGARIOUS: {
     trait: "Gregarious",
     description: "Farming increases population growth by 25%",
+    populationGrowthBonus: 0.25,
   },
   NOMADIC: {
     trait: "Nomadic",
     description: "20% chance of discovering an extra tile when exploring",
+    extraTileChance: 0.20,
   },
   NEGOTIATOR: {
     trait: "Negotiator",
     description: "Decreases the cost of buildings by 10% and increases sell rates by 15%",
+    buildingCostReduction: 0.10,
+    sellRateBonus: 0.15,
   }
 }
 

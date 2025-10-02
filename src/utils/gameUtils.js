@@ -1,7 +1,7 @@
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
 import { COOLDOWN_MS } from "./constants.js";
 import Nation from "../models/Nation.js";
-import Config from "../models/Config.js";
+import ServerConfig from "../models/ServerServerConfig.js";
 import { BUILDINGS } from "./constants.js";
 
 // export const COOLDOWN_MS = 1000 * 60 * 60; // 1 hour global for resource commands
@@ -268,6 +268,31 @@ export function getResourceCategory(nation, item) {
   if (nation.military[item] !== undefined) return "military";
   console.log("Not military.");
   return null; // unknown item
+}
+
+/** Helper: calc total power (accepts plural keys) */
+export function calcNationPower(nation) {
+  // nation.military keys are plural: troops, tanks, jets
+  return (Object.entries(nation.military || {}).reduce((sum, [unit, count]) => {
+    return sum + getUnitPower(unit) * (count || 0);
+  }, 0));
+}
+
+/** Helper: unit power mapping (accepts plural or singular keys) */
+export function getUnitPower(unit) {
+  switch (unit.toLowerCase()) {
+    case "troop":
+    case "troops":
+      return 1;
+    case "tank":
+    case "tanks":
+      return 5;
+    case "jet":
+    case "jets":
+      return 10;
+    default:
+      return 1;
+  }
 }
 
 // simple shared registry

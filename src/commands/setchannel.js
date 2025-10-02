@@ -1,6 +1,6 @@
 
 import { SlashCommandBuilder } from "discord.js";
-import Config from "../models/Config.js";
+import ServerConfig from "../models/ServerConfig.js";
 import { channelMap } from "../utils/gameUtils.js";
 
 // /setchannel
@@ -20,7 +20,7 @@ export async function execute(interaction) {
   }
 
   const channel = interaction.options.getChannel("channel");
-  await Config.findOneAndUpdate(
+  await ServerConfig.findOneAndUpdate(
     { serverId: interaction.guild.id },
     { defaultChannelId: channel.id },
     { upsert: true }
