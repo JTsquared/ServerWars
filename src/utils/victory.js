@@ -3,60 +3,96 @@ import GameConfig from "../models/GameConfig.js";
 import ServerConfig from "../models/ServerConfig.js";
 import Nation from "../models/Nation.js";
 import { calcNationPower } from "./gameUtils.js";
-import { determineWinner } from "./victory.js";
 import { channelMap } from "./gameUtils.js";
 import { EmbedBuilder } from "discord.js";
 import { getServerWarsChannel } from "./gameUtils.js";
 
 export async function determineWinner(serverId) {
-  const config = await GameConfig.findOne();
-  if (!config?.gamemode) return null;
-
-  const { gameType, seasonEnd, victoryType } = config.gamemode;
-
-  // Fetch all nations in this server
-  const nations = await Nation.find();
-  if (!nations.length) return null;
-
-  let ranking = [];
-
-  if (victoryType === "military") {
-    ranking = nations
-      .map(n => ({
-        nation: n,
-        score: calcNationPower(n) // your existing method
-      }))
-      .sort((a, b) => b.score - a.score);
-
-  } else if (victoryType === "cities") {
-    ranking = nations
-      .map(n => ({
-        nation: n,
-        score: n.cities,
-        tieBreaker: n.population
-      }))
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return b.tieBreaker - a.tieBreaker;
-      });
-
-  } else if (victoryType === "gold") {
-    ranking = nations
-      .map(n => ({
-        nation: n,
-        score: n.gold
-      }))
-      .sort((a, b) => b.score - a.score);
+    console.log('Determining winner for server:', serverId);
+    const config = await GameConfig.findOne().lean();
+  
+    const {
+      gameType = "sandbox",
+      seasonEnd = null,
+      victoryType = "military"
+    } = config?.gamemode || {};
+  
+    if (gameType === "sandbox") return null;
+  
+    console.log('Game config:', { gameType, seasonEnd, victoryType });
+    if (seasonEnd && new Date() < new Date(seasonEnd)) return null;
+    console.log('Season has ended, proceeding to determine winner.');
+  
+    // Fetch all nations in this server
+    const nations = await Nation.find();
+    if (!nations.length) return null;
+  
+    // safe power calculator (uses calcNationPower if available else fallback)
+    function calcNationPowerSafe(n) {
+      if (typeof calcNationPower === "function") {
+        try { return calcNationPower(n); } catch (e) { /* continue to fallback */ }
+      }
+      // fallback: simple mapping
+      const getUnitPower = unit => {
+        switch (unit.toLowerCase()) {
+          case "troop": case "troops": return 1;
+          case "tank": case "tanks":   return 5;
+          case "jet": case "jets":     return 10;
+          default: return 1;
+        }
+      };
+      return Object.entries(n.military || {}).reduce((sum, [k, v]) => sum + (getUnitPower(k) * (v || 0)), 0);
+    }
+  
+    let ranking = [];
+  
+    if (victoryType === "power") {
+      ranking = nations
+        .map(n => ({
+          nation: n,
+          score: calcNationPowerSafe(n)
+        }))
+        .sort((a, b) => b.score - a.score);
+  
+    } else if (victoryType === "cities") {
+      ranking = nations
+        .map(n => ({
+          nation: n,
+          // use the building count for cities (fall back to 0)
+          score: (n.buildings?.city || 0),
+          tieBreaker: (n.population || 0)
+        }))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return b.tieBreaker - a.tieBreaker;
+        });
+  
+    } else if (victoryType === "gold") {
+      ranking = nations
+        .map(n => ({
+          nation: n,
+          score: (n.resources?.gold || 0)
+        }))
+        .sort((a, b) => b.score - a.score);
+    } else {
+      // default/fallback: compute by power
+      ranking = nations
+        .map(n => ({ nation: n, score: calcNationPowerSafe(n) }))
+        .sort((a, b) => b.score - a.score);
+    }
+  
+    const winner = ranking[0]?.nation || null;
+    console.log('Winner determined:', winner ? winner.name : 'None');
+    const top3 = ranking.slice(0, 3);
+  
+    // return ranking entries (with nation + score etc.) so announce can display exact values
+    return { gameType, victoryType, winner, top3, ranking };
   }
 
-  const winner = ranking[0]?.nation || null;
-  const top3 = ranking.slice(0, 3).map(r => r.nation);
-
-  return { gameType, victoryType, winner, top3, ranking };
-}
-
-export async function checkForGameEnd(client, serverId) {
+export async function checkForGameEnd(client, serverId, intercept = false, interaction = null) {
   const config = await GameConfig.findOne();
+  console.log('Checking game end conditions for server:', serverId);
+  console.log('config: ', config);
   if (!config?.gamemode) return;
 
   const { gameType, seasonEnd } = config.gamemode;
@@ -67,34 +103,100 @@ export async function checkForGameEnd(client, serverId) {
     if (nations.length === 1) {
       await announceWinner(client, serverId, nations[0], [nations[0]], gameType, "lastNationStanding");
     }
-    return;
+    if (intercept && interaction) {
+        await interaction.reply({ content: "⛔ The season has ended. This command cannot be executed.", ephemeral: true });
+      }
+      return true;
   }
 
   // Conquest ends if time is up or 1 nation left
   const now = new Date();
   const nations = await Nation.find();
 
+  console.log('Nations count:', nations.length);
   if (nations.length === 1 || (seasonEnd && now >= seasonEnd)) {
-    const { victoryType, winner, top3 } = await determineWinner(serverId);
-    await announceWinner(client, serverId, winner, top3, gameType, victoryType);
+    console.log('Game ending conditions met.');
+    const { victoryType, winner, top3, ranking } = await determineWinner(serverId);
+    console.log('Victory details:', { victoryType, winner: winner ? winner.name : null, top3: top3.map(n => n.name) }); 
+    await announceWinner(client, serverId, winner, top3, gameType, victoryType, ranking);
+
+    if (intercept && interaction) {
+        await interaction.reply({ content: "⛔ The season has ended. This command cannot be executed.", ephemeral: true });
+      }
+      return true;
   }
+  return false;
 }
 
-async function announceWinner(client, serverId, winner, top3, mode, victoryType) {
-  const channelId = channelMap.get(serverId);
-  if (!channelId) return;
+async function announceWinner(client, serverId, winner, top3Entries, mode, victoryType, ranking) {
+    console.log('Announcing winner for server:', serverId);
+    const channelId = channelMap.get(serverId);
+    console.log('Announcement channel ID:', channelId);
+    if (!channelId) return;
+  
+    const victoryDesc = {
+      conquest: "Total Conquest",
+      power: "Strongest Military",
+      cities: "Most Cities",
+      gold: "Wealth (Gold)",
+      lastNationStanding: "Last Nation Standing"
+    }[victoryType] || "by Victory";
+  
+    const channel = await client.channels.fetch(channelId);
+  
+    const fmt = n => (typeof n === "number" ? n.toLocaleString() : (n || "0"));
+  
+    // Build detail lines using the ranking entries (top3Entries contains objects { nation, score, ... })
+    const placeIcons = ["🥇", "🥈", "🥉"];
+    const detailLines = top3Entries.map((entry, idx) => {
+      if (!entry || !entry.nation) return null;
+      const nation = entry.nation;
+      const place = placeIcons[idx] || `#${idx + 1}`;
+  
+      if (victoryType === "power") {
+        const powerVal = entry.score ?? 0;
+        return `${place} **${nation.name}** — Military Power: ${fmt(powerVal)}`;
+      }
+  
+      if (victoryType === "cities") {
+        const cityCount = (nation.buildings?.city ?? entry.score ?? 0);
+        const pop = (nation.population ?? entry.tieBreaker ?? 0);
+        return `${place} **${nation.name}** — Cities: ${fmt(cityCount)}, Population: ${fmt(pop)}`;
+      }
+  
+      if (victoryType === "gold") {
+        const goldVal = entry.score ?? (nation.resources?.gold ?? 0);
+        return `${place} **${nation.name}** — Gold: ${fmt(goldVal)}`;
+      }
+  
+      // default: show score if exists, else basic info
+      if (typeof entry.score !== "undefined") {
+        return `${place} **${nation.name}** — Score: ${fmt(entry.score)}`;
+      }
+      return `${place} **${nation.name}**`;
+    }).filter(Boolean).join("\n");
+  
+    const embed = new EmbedBuilder()
+      .setTitle("🏆 Season Concludes!")
+      .setDescription(
+        `**Game Mode:** ${mode}\n**Victory Type:** ${victoryDesc}\n\n${detailLines}`
+      )
+      .setColor("Gold");
+  
+    if (winner) {
+      embed.addFields({ name: "Champion", value: `🥇 **${winner.name}**`, inline: true });
+    }
+  
+    await channel.send({ embeds: [embed] });
+  }
 
-  const channel = await client.channels.fetch(channelId);
 
-  const embed = new EmbedBuilder()
-    .setTitle("🏆 Season Concludes!")
-    .setDescription(
-      `**Game Mode:** ${mode}\n**Victory Type:** ${victoryType}\n\n` +
-      `🥇 Winner: **${winner.name}**\n\n` +
-      `🥈 2nd: ${top3[1]?.name || "N/A"}\n` +
-      `🥉 3rd: ${top3[2]?.name || "N/A"}`
-    )
-    .setColor("Gold");
-
-  await channel.send({ embeds: [embed] });
-}
+// const targetGuild = await interaction.client.guilds.fetch(targetNation.serverId);
+// if (targetGuild) {
+//   const channel = getServerWarsChannel(targetGuild);
+//   if (channel) {
+//     await channel.send(
+//       `📜 **Envoy from ${nation.name}:**\n> ${message}`
+//     );
+//   }
+// }

@@ -2,12 +2,16 @@ import mongoose from "mongoose";
 
 const configSchema = new mongoose.Schema({
     gamemode: {
-        gameType: String, enum: ["sandbox", "seasonal"], default: "sandbox",
+        gameType: { 
+            type: String, 
+            enum: ["sandbox", "seasonal"], 
+            default: "sandbox" 
+          },
         seasonEnd: Date,
         minServers: { type: Number, default: 1 },
         victoryType: { 
         type: String, 
-        enum: ["military", "cities", "gold"], 
+        enum: ["conquest","power", "cities", "gold"], 
         default: "military" 
         }
     },
