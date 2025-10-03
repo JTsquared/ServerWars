@@ -9,6 +9,7 @@ import ServerConfig from "./models/ServerConfig.js";
 import { channelMap } from "./utils/gameUtils.js";
 import eventBus from "./utils/eventbus.js";
 import { processPendingEvent } from "./utils/worldEvents.js";
+import { checkForGameEnd } from "./utils/victory.js";
 
 config();
 
@@ -58,17 +59,20 @@ client.on("interactionCreate", async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-  
+
     try {
+      const gameEnded = await checkForGameEnd(client, interaction.guildId, true, interaction);
+      if (gameEnded) return;
+
       await command.execute(interaction);
-      await checkForGameEnd(client, interaction.guildId);
+
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: "⚠️ Error executing command.", ephemeral: true });
     }
   } else if (interaction.isButton()) {
     if (interaction.customId.startsWith("truce_")) {
-      return handleTruceButton(interaction); // imported from truce.js
+      return handleTruceButton(interaction);
     } else if (interaction.customId.startsWith("trade_")) {
       return handleTradeButton(interaction);
     }
