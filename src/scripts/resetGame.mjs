@@ -21,7 +21,7 @@ async function resetGame() {
   try {
     await mongoose.connect(process.env.MONGO_URI, { dbName: "serverWars" });
 
-    //await mongoose.connection.dropDatabase();
+    await mongoose.connection.dropDatabase();
 
     // Build new config
     const newConfig = {
