@@ -1,8 +1,7 @@
 // scripts/resetGame.js
 import mongoose from "mongoose";
 import GameConfig from "../models/GameConfig.js";
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/serverwars";
 console.log("mongo uri:", MONGO_URI);
