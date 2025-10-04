@@ -2,6 +2,7 @@
 import GameConfig from "../models/GameConfig.js";
 import ServerConfig from "../models/ServerConfig.js";
 import Nation from "../models/Nation.js";
+import Tile from "../models/Tile.js";
 import { calcNationPower } from "./gameUtils.js";
 import { channelMap } from "./gameUtils.js";
 import { EmbedBuilder } from "discord.js";
@@ -91,33 +92,44 @@ export async function determineWinner(serverId) {
 
 export async function checkForGameEnd(client, serverId, intercept = false, interaction = null) {
   const config = await GameConfig.findOne();
-  console.log('Checking game end conditions for server:', serverId);
-  console.log('config: ', config);
   if (!config?.gamemode) return;
 
-  const { gameType, seasonEnd } = config.gamemode;
+  const { gameType, seasonEnd, minNations = 2 } = config.gamemode;
+  const nations = await Nation.find();
 
-  // Sandbox ends only if 1 nation left
+  if (nations.length < minNations) {
+    return;
+  }
+
+  // Sandbox ends only if 1 nation has all cities
   if (gameType === "sandbox") {
-    const nations = await Nation.find();
-    if (nations.length === 1) {
-      await announceWinner(client, serverId, nations[0], [nations[0]], gameType, "lastNationStanding");
-    }
-    if (intercept && interaction) {
+    const tilesWithCities = await Tile.find({ "city.exists": true });
+    const uniqueOwners = new Set(tilesWithCities.map(tile => tile.city.owner).filter(Boolean));
+
+    if (uniqueOwners.size === 1) {
+      const winnerServerId = Array.from(uniqueOwners)[0];
+      const winner = await Nation.findOne({ serverId: winnerServerId });
+      await announceWinner(client, serverId, winner, [winner], gameType, "lastNationStanding");
+
+      if (intercept && interaction) {
         await interaction.reply({ content: "⛔ The season has ended. This command cannot be executed.", ephemeral: true });
       }
       return true;
+    }
+    return false;
   }
 
-  // Conquest ends if time is up or 1 nation left
+  // Conquest ends if time is up or 1 nation has all cities
   const now = new Date();
-  const nations = await Nation.find();
 
-  console.log('Nations count:', nations.length);
-  if (nations.length === 1 || (seasonEnd && now >= seasonEnd)) {
+  const tilesWithCities = await Tile.find({ "city.exists": true });
+  const uniqueOwners = new Set(tilesWithCities.map(tile => tile.city.owner).filter(Boolean));
+
+  console.log('Unique owners with cities:', uniqueOwners.size);
+  if (uniqueOwners.size === 1 || (seasonEnd && now >= seasonEnd)) {
     console.log('Game ending conditions met.');
     const { victoryType, winner, top3, ranking } = await determineWinner(serverId);
-    console.log('Victory details:', { victoryType, winner: winner ? winner.name : null, top3: top3.map(n => n.name) }); 
+    console.log('Victory details:', { victoryType, winner: winner ? winner.name : null, top3: top3.map(n => n.name) });
     await announceWinner(client, serverId, winner, top3, gameType, victoryType, ranking);
 
     if (intercept && interaction) {

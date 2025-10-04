@@ -6,6 +6,8 @@ import { handleTruceButton } from "./handlers/truceHandler.js";
 import { handleTradeButton } from "./handlers/tradeHandler.js";
 import { handleTradeCounterModal } from "./handlers/tradeCounterHandler.js";
 import ServerConfig from "./models/ServerConfig.js";
+import Nation from "./models/Nation.js";
+import Tile from "./models/Tile.js";
 import { channelMap } from "./utils/gameUtils.js";
 import eventBus from "./utils/eventbus.js";
 import { processPendingEvent } from "./utils/worldEvents.js";
@@ -63,6 +65,29 @@ client.on("interactionCreate", async interaction => {
     try {
       const gameEnded = await checkForGameEnd(client, interaction.guildId, true, interaction);
       if (gameEnded) return;
+
+      // Define read-only commands that can be used even when eliminated
+      const readOnlyCommands = ['stats', 'playerstats', 'intelreport', 'surveyreport', 'help'];
+
+      // Check if nation is eliminated (for action commands only)
+      if (!readOnlyCommands.includes(interaction.commandName)) {
+        const nation = await Nation.findOne({ serverId: interaction.guildId });
+
+        if (nation) {
+          const citiesOwned = await Tile.countDocuments({
+            "city.exists": true,
+            "city.owner": nation.serverId
+          });
+
+          if (citiesOwned === 0) {
+            await interaction.reply({
+              content: "💀 Your nation has been eliminated (no cities remaining). You cannot execute this command.",
+              ephemeral: true
+            });
+            return;
+          }
+        }
+      }
 
       await command.execute(interaction);
 
