@@ -3,6 +3,8 @@ import { SlashCommandBuilder, PermissionFlagsBits, Colors } from "discord.js";
 import Nation from "../models/Nation.js";
 import Tile from "../models/Tile.js";
 import { NATION_TRAITS, WORLD_TILES } from "../utils/constants.js";
+import ServerConfig from "../models/ServerConfig.js";
+import { channelMap } from "../utils/gameUtils.js";
 
 export const data = new SlashCommandBuilder()
   .setName("createnation")
