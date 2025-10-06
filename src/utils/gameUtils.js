@@ -160,7 +160,18 @@ export async function grantExp(player, path, amount, nation) {
   switch (path) {
     case "military": {
       const current = nation.leadership.commanderInChief;
-      if (!current?.userId || (player.userId !== current.userId && player.exp.military > current.exp)) {
+      if (!current?.userId) {
+        // No current holder
+        nation.leadership.commanderInChief = {
+          userId: player.userId,
+          exp: player.exp.military,
+        };
+        messages.push(`🪖 <@${player.userId}> is now the **Commander in Chief** of ${nation.name}!`);
+      } else if (player.userId === current.userId) {
+        // Current holder gaining EXP - update their stored value
+        nation.leadership.commanderInChief.exp = player.exp.military;
+      } else if (player.exp.military > current.exp) {
+        // Someone else overtook them
         nation.leadership.commanderInChief = {
           userId: player.userId,
           exp: player.exp.military,
@@ -172,7 +183,18 @@ export async function grantExp(player, path, amount, nation) {
 
     case "economist": {
       const current = nation.leadership.financeMinister;
-      if (!current?.userId || (player.userId !== current.userId && player.exp.economist > current.exp)) {
+      if (!current?.userId) {
+        // No current holder
+        nation.leadership.financeMinister = {
+          userId: player.userId,
+          exp: player.exp.economist,
+        };
+        messages.push(`💰 <@${player.userId}> is now the **Finance Minister** of ${nation.name}!`);
+      } else if (player.userId === current.userId) {
+        // Current holder gaining EXP - update their stored value
+        nation.leadership.financeMinister.exp = player.exp.economist;
+      } else if (player.exp.economist > current.exp) {
+        // Someone else overtook them
         nation.leadership.financeMinister = {
           userId: player.userId,
           exp: player.exp.economist,
@@ -184,7 +206,18 @@ export async function grantExp(player, path, amount, nation) {
 
     case "scout": {
       const current = nation.leadership.chiefScout;
-      if (!current?.userId || (player.userId !== current.userId && player.exp.scout > current.exp)) {
+      if (!current?.userId) {
+        // No current holder
+        nation.leadership.chiefScout = {
+          userId: player.userId,
+          exp: player.exp.scout,
+        };
+        messages.push(`🧭 <@${player.userId}> is now the **Chief Scout** of ${nation.name}!`);
+      } else if (player.userId === current.userId) {
+        // Current holder gaining EXP - update their stored value
+        nation.leadership.chiefScout.exp = player.exp.scout;
+      } else if (player.exp.scout > current.exp) {
+        // Someone else overtook them
         nation.leadership.chiefScout = {
           userId: player.userId,
           exp: player.exp.scout,
@@ -196,7 +229,18 @@ export async function grantExp(player, path, amount, nation) {
 
     case "diplomat": {
       const current = nation.leadership.foreignMinister;
-      if (!current?.userId || (player.userId !== current.userId && player.exp.diplomat > current.exp)) {
+      if (!current?.userId) {
+        // No current holder
+        nation.leadership.foreignMinister = {
+          userId: player.userId,
+          exp: player.exp.diplomat,
+        };
+        messages.push(`🕊️ <@${player.userId}> is now the **Foreign Minister** of ${nation.name}!`);
+      } else if (player.userId === current.userId) {
+        // Current holder gaining EXP - update their stored value
+        nation.leadership.foreignMinister.exp = player.exp.diplomat;
+      } else if (player.exp.diplomat > current.exp) {
+        // Someone else overtook them
         nation.leadership.foreignMinister = {
           userId: player.userId,
           exp: player.exp.diplomat,
