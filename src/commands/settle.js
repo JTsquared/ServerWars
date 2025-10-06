@@ -48,9 +48,9 @@ export async function execute(interaction) {
     return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may settle a new city.");
   }
 
-  if (!checkPermissions(interaction, nation, "Explorer")) {
-    return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may handle foreign relations.");
-  }
+  // if (!checkPermissions(interaction, nation, "Explorer")) {
+  //   return interaction.reply("🚫 Only the **Chief Scout** or someone with the Political Leader role may handle foreign relations.");
+  // }
 
   const tileId = interaction.options.getString("tile");
   const cityName = interaction.options.getString("name");
