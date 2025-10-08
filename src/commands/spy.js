@@ -10,7 +10,7 @@ import {
   EXP_GAIN,
   NATION_TRAITS
 } from "../utils/constants.js";
-import { grantExp, setResourceCooldown, getNationalCooldownTime, setNationCooldown } from "../utils/gameUtils.js";
+import { grantExp, setResourceCooldown, getNationalCooldownTime, setNationCooldown, canUseResourceCommand } from "../utils/gameUtils.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
 
 export const data = new SlashCommandBuilder()
