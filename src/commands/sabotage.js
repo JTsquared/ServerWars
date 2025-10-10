@@ -12,7 +12,8 @@ import {
   grantExp,
   setResourceCooldown,
   getNationalCooldownTime,
-  setNationCooldown
+  setNationCooldown,
+  canUseResourceCommand
 } from "../utils/gameUtils.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
 
