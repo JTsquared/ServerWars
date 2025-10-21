@@ -4,7 +4,9 @@ import Nation from "../models/Nation.js";
 import Tile from "../models/Tile.js";
 import { NATION_TRAITS, WORLD_TILES } from "../utils/constants.js";
 import ServerConfig from "../models/ServerConfig.js";
+import GameConfig from "../models/GameConfig.js";
 import { channelMap } from "../utils/gameUtils.js";
+import { createPrizePoolWallet } from "../utils/prizePoolApi.js";
 
 export const data = new SlashCommandBuilder()
   .setName("createnation")
@@ -130,6 +132,49 @@ export async function execute(interaction) {
       { upsert: true }
     );
     channelMap.set(interaction.guild.id, channel.id);
+  }
+
+  // Check if crypto is enabled for this game
+  const gameConfig = await GameConfig.findOne();
+  const cryptoEnabled = gameConfig?.enableCrypto || false;
+
+  // Create prize pool wallet if crypto is enabled
+  if (cryptoEnabled) {
+    const appId = interaction.client.user.id;
+    try {
+      const walletResult = await createPrizePoolWallet(interaction.guild.id, appId);
+
+      if (walletResult.success) {
+        console.log(`✅ Prize pool wallet created for ${name}: ${walletResult.wallet.address}`);
+      } else if (walletResult.error === "WALLET_ALREADY_EXISTS") {
+        console.log(`ℹ️ Prize pool wallet already exists for ${name}`);
+      } else {
+        // HARD STOP: Wallet creation is required when crypto is enabled
+        console.error(`❌ Failed to create prize pool wallet for ${name}: ${walletResult.error}`);
+
+        // Roll back nation and tile creation
+        await Nation.deleteOne({ serverId: interaction.guild.id });
+        await Tile.deleteOne({ tileId });
+
+        return interaction.reply({
+          content: `❌ Failed to create crypto wallet for your nation: ${walletResult.error}\n\nPlease try again or contact an administrator if the problem persists.`,
+          ephemeral: true
+        });
+      }
+    } catch (error) {
+      console.error("Error creating prize pool wallet:", error);
+
+      // Roll back nation and tile creation
+      await Nation.deleteOne({ serverId: interaction.guild.id });
+      await Tile.deleteOne({ tileId });
+
+      return interaction.reply({
+        content: `❌ An error occurred while creating the crypto wallet for your nation.\n\nPlease try again or contact an administrator.`,
+        ephemeral: true
+      });
+    }
+  } else {
+    console.log(`ℹ️ Crypto disabled - skipping prize pool wallet creation for ${name}`);
   }
 
   const traitName = NATION_TRAITS[trait].trait;

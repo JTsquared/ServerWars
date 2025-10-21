@@ -20,9 +20,19 @@ client.commands = new Collection();
 
 // Load commands
 const commands = [];
+const hiddenCommands = [];
 const commandFiles = fs.readdirSync("./src/commands").filter(file => file.endsWith(".js"));
 for (const file of commandFiles) {
   const command = await import(`./commands/${file}`);
+
+  // Skip hidden commands from regular registration
+  if (command.hidden) {
+    console.log(`Found hidden command: ${command.data.name}`);
+    client.commands.set(command.data.name, command);
+    hiddenCommands.push(command.data.toJSON());
+    continue;
+  }
+
   client.commands.set(command.data.name, command);
   commands.push(command.data.toJSON());
 }
@@ -40,21 +50,26 @@ async function loadChannelMap() {
 // Register commands (guild + global)
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-  console.log("🔄 Registering slash commands...");
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-  // if (process.env.GUILD_ID) {
-  //   await rest.put(
-  //     Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-  //     { body: commands }
-  //   );
-  //   console.log("✅ Guild commands registered (instant).");
-  // }
+  console.log(`🔄 Registering slash commands... (Environment: ${process.env.NODE_ENV || 'production'})`);
 
-  await rest.put(
-    Routes.applicationCommands(process.env.CLIENT_ID),
-    { body: commands }
-  );
-  console.log("✅ Global commands registered (may take up to 1h).");
+  // In development: Register all commands (regular + hidden) in the test guild
+  if (isDevelopment && process.env.GUILD_ID) {
+    const allCommands = [...commands, ...hiddenCommands];
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: allCommands }
+    );
+    console.log(`✅ Registered ${allCommands.length} commands in test guild (${commands.length} regular + ${hiddenCommands.length} hidden)`);
+  } else {
+    // In production: Only register regular commands globally
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: commands }
+    );
+    console.log(`✅ Registered ${commands.length} global commands (hidden commands not registered)`);
+  }
 }
 
 client.on("interactionCreate", async interaction => {
@@ -63,37 +78,55 @@ client.on("interactionCreate", async interaction => {
     if (!command) return;
 
     try {
-      const gameEnded = await checkForGameEnd(client, interaction.guildId, true, interaction);
-      if (gameEnded) return;
+      // Skip game-specific checks for hidden/dev commands
+      const isHiddenCommand = command.hidden === true;
 
-      // Define read-only commands that can be used even when eliminated
-      const readOnlyCommands = ['stats', 'playerstats', 'intelreport', 'surveyreport', 'help'];
+      if (!isHiddenCommand) {
+        const gameEnded = await checkForGameEnd(client, interaction.guildId, true, interaction);
+        if (gameEnded) return;
 
-      // Check if nation is eliminated (for action commands only)
-      if (!readOnlyCommands.includes(interaction.commandName)) {
-        const nation = await Nation.findOne({ serverId: interaction.guildId });
+        // Define read-only commands that can be used even when eliminated
+        const readOnlyCommands = ['stats', 'playerstats', 'intelreport', 'surveyreport', 'help'];
 
-        if (nation) {
-          const citiesOwned = await Tile.countDocuments({
-            "city.exists": true,
-            "city.owner": nation.serverId
-          });
+        // Check if nation is eliminated (for action commands only)
+        if (!readOnlyCommands.includes(interaction.commandName)) {
+          const nation = await Nation.findOne({ serverId: interaction.guildId });
 
-          if (citiesOwned === 0) {
-            await interaction.reply({
-              content: "💀 Your nation has been eliminated (no cities remaining). You cannot execute this command.",
-              ephemeral: true
+          if (nation) {
+            const citiesOwned = await Tile.countDocuments({
+              "city.exists": true,
+              "city.owner": nation.serverId
             });
-            return;
+
+            if (citiesOwned === 0) {
+              await interaction.reply({
+                content: "💀 Your nation has been eliminated (no cities remaining). You cannot execute this command.",
+                ephemeral: true
+              });
+              return;
+            }
           }
         }
+      } else {
+        console.log(`[Hidden Command] Executing: ${interaction.commandName}`);
       }
 
       await command.execute(interaction);
 
     } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: "⚠️ Error executing command.", ephemeral: true });
+      console.error('[Command Error]', interaction.commandName, err);
+
+      // Try to respond or edit reply depending on interaction state
+      const errorMsg = { content: `⚠️ Error executing command: ${err.message}`, ephemeral: true };
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply(errorMsg);
+        } else {
+          await interaction.reply(errorMsg);
+        }
+      } catch (replyError) {
+        console.error('[Reply Error]', replyError);
+      }
     }
   } else if (interaction.isButton()) {
     if (interaction.customId.startsWith("truce_")) {

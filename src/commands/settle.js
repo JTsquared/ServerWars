@@ -127,7 +127,8 @@ export async function execute(interaction) {
 
   let reply = `🏙️ You have successfully settled the city of **${cityName}** on tile **${tileId}**!\n` +
   `🌆 Total cities: **${nation.buildings.city}**\n` +
-  `👥 Population: **${nation.population}**` +
+  `👥 Population: **${nation.population}**\n` +
+  `-${cityCost.steel} Steel ⛏️ & -${cityCost.gold} Gold 💰 deducted\n` +
   `+${EXP_GAIN.SCOUT} Scout EXP (Current: ${player.exp.scout})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;
 

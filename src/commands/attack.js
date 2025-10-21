@@ -4,15 +4,19 @@ import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import Tile from "../models/Tile.js";
 import Intel from "../models/Intel.js";
+import GameConfig from "../models/GameConfig.js";
+import Truce from "../models/Truce.js";
 import {
   getNationalCooldownTime,
   setNationCooldown,
   setResourceCooldown,
   canUseResourceCommand,
   calcNationPower,
+  grantExp,
 } from "../utils/gameUtils.js";
-import { POPULATION_PER_CITY } from "../utils/constants.js";
+import { POPULATION_PER_CITY, EXP_GAIN } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
+import { getPrizePoolWallet, transferBetweenPrizePools } from "../utils/prizePoolApi.js";
 
 const MIN_MILITARY_POWER_PER_CITY = parseInt(process.env.MIN_MILITARY_POWER_PER_CITY || "100", 10);
 
@@ -168,6 +172,54 @@ export async function execute(interaction) {
     targetNation.resources.gold = Math.max(0, (targetNation.resources.gold || 0) - share);
 
     nation.buildings.city =- 1;
+
+    // Crypto transfer when city falls (if enabled)
+    const gameConfig = await GameConfig.findOne();
+    const cryptoEnabled = gameConfig?.enableCrypto || false;
+
+    if (cryptoEnabled) {
+      try {
+        const appId = interaction.client.user.id;
+        const ticker = process.env.TREASURE_TOKEN || "AVAX";
+
+        // Get defender's prize pool balance
+        const defenderPoolResult = await getPrizePoolWallet(targetNation.serverId, appId);
+
+        if (defenderPoolResult.success && defenderPoolResult.balances) {
+          // Find the balance for the treasure token
+          const tokenBalance = defenderPoolResult.balances.find(b => b.ticker === ticker);
+
+          if (tokenBalance && parseFloat(tokenBalance.available) > 0) {
+            // Calculate amount to transfer: total balance / number of cities they had BEFORE losing this one
+            const numCitiesBeforeAttack = targetNation.buildings.city || 1;
+            const totalBalance = parseFloat(tokenBalance.available);
+            const cryptoToTransfer = (totalBalance / numCitiesBeforeAttack).toFixed(6);
+
+            console.log(`[Attack] City fallen - transferring ${cryptoToTransfer} ${ticker} from ${targetNation.name} to ${nation.name}`);
+            console.log(`[Attack] Calculation: ${totalBalance} / ${numCitiesBeforeAttack} = ${cryptoToTransfer}`);
+
+            if (parseFloat(cryptoToTransfer) > 0) {
+              const transferResult = await transferBetweenPrizePools(
+                appId,
+                targetNation.serverId, // from (losing nation)
+                nation.serverId,        // to (winning nation)
+                ticker,
+                cryptoToTransfer
+              );
+
+              if (transferResult.success) {
+                console.log(`✅ Crypto transfer successful: ${cryptoToTransfer} ${ticker} - TX: ${transferResult.txHash}`);
+              } else {
+                console.warn(`⚠️ Failed to transfer crypto: ${transferResult.error}`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error transferring crypto on city fall:", error);
+        // Don't fail the attack if crypto transfer fails
+      }
+    }
 
     // Put attacker nation on cooldown
     setNationCooldown(nation, "attack");

@@ -339,6 +339,25 @@ export function getUnitPower(unit) {
   }
 }
 
+/**
+ * Calculates a safe per-reward fraction of the prize pool.
+ *
+ * @param {number} gridSize - Number of explore attempts (n)
+ * @param {number} chance - Probability of success per attempt (p, e.g. 0.1 for 10%)
+ * @param {number} sigmaMultiplier - Safety factor (3 = ~99.7% safe)
+ * @returns {number} Fraction of the prize pool to give per success (e.g. 0.0078 = 0.78%)
+ */
+export function getSafeRewardFraction(gridSize, chance, sigmaMultiplier = 3) {
+  const n = gridSize;
+  const p = chance;
+
+  const mean = n * p;
+  const sd = Math.sqrt(n * p * (1 - p));
+  const safeMax = mean + sigmaMultiplier * sd;
+
+  return 1 / safeMax;
+}
+
 // simple shared registry
 export const channelMap = new Map();
 

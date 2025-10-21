@@ -3,14 +3,18 @@ import { SlashCommandBuilder } from "discord.js";
 import Nation from "../models/Nation.js";
 import Player from "../models/Player.js";
 import Tile from "../models/Tile.js";
+import GameConfig from "../models/GameConfig.js";
 import {
   canUseResourceCommand,
   setResourceCooldown,
-  grantExp
+  grantExp,
+  getSafeRewardFraction
 } from "../utils/gameUtils.js";
 import { EXP_GAIN, WORLD_TILES, NATION_TRAITS } from "../utils/constants.js";
 import Intel from "../models/Intel.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
+import { transferTreasureReward } from "../utils/prizePoolApi.js";
+import { getGlobalWalletBalance } from "../utils/cryptoTipApi.js";
 
 const SCOUT_EXP_GAIN = 15;
 
@@ -24,17 +28,26 @@ export async function execute(interaction) {
 
   const player = await Player.findOne({ userId: interaction.user.id, serverId: interaction.guild.id });
   if (!player) {
-    return interaction.reply("⚠️ You must `/join` your server’s campaign before exploring!");
+    return interaction.reply("⚠️ You must `/join` your server's campaign before exploring!");
   }
 
   const nation = await Nation.findOne({ serverId: interaction.guild.id });
   if (!nation) return interaction.reply("❌ Your nation does not exist. Use `/join` first.");
+
+  // Check if crypto is enabled
+  const gameConfig = await GameConfig.findOne();
+  const cryptoEnabled = gameConfig?.enableCrypto || false;
 
   if (!canUseResourceCommand(player)) {
     return interaction.reply({
       content: "⏳ You must wait before using another resource command.",
       ephemeral: true,
     });
+  }
+
+  // IMPORTANT: Defer reply early if crypto is enabled (blockchain transactions take time)
+  if (cryptoEnabled) {
+    await interaction.deferReply();
   }
 
   // Increment discovered tiles
@@ -82,10 +95,58 @@ export async function execute(interaction) {
     const roll = Math.random();
 
     if (roll < 0.1) {
-      // Treasure event
+      // Treasure event - give gold (+ crypto if enabled)
       const goldFound = Math.floor(Math.random() * 50) + 10;
       nation.resources.gold = (nation.resources.gold || 0) + goldFound;
-      eventMessages.push(`💰 Tile ${i + 1}: You discovered treasure and gained **${goldFound} gold**!`);
+
+      let treasureMsg = `💰 Tile ${i + 1}: You discovered treasure and gained **${goldFound} gold**`;
+
+      // Only try to transfer crypto if it's enabled and rewards aren't exhausted
+      if (cryptoEnabled && !gameConfig.treasureRewardsExhausted) {
+        try {
+          const appId = interaction.client.user.id;
+          const ticker = process.env.TREASURE_TOKEN || "AVAX";
+          const seasonRewardTotal = parseFloat(process.env.SEASON_REWARD_TOTAL || "0.1");
+
+          // Check global wallet balance to see if we have enough rewards left
+          const balanceResult = await getGlobalWalletBalance(appId, ticker);
+
+          if (balanceResult.success && parseFloat(balanceResult.balance) < seasonRewardTotal) {
+            // Reward pool exhausted - set flag to prevent future API calls
+            gameConfig.treasureRewardsExhausted = true;
+            await gameConfig.save();
+            console.log(`⚠️ Treasure rewards exhausted (${balanceResult.balance} ${ticker} < ${seasonRewardTotal} ${ticker})`);
+          } else if (balanceResult.success) {
+            // We have enough balance, proceed with transfer
+            const treasureChance = 0.1; // 10% chance per tile
+            const rewardFraction = getSafeRewardFraction(WORLD_TILES, treasureChance);
+            const cryptoAmount = (seasonRewardTotal * rewardFraction).toFixed(6);
+
+            if (parseFloat(cryptoAmount) > 0) {
+              const transferResult = await transferTreasureReward(
+                appId,
+                interaction.guild.id,
+                ticker,
+                cryptoAmount
+              );
+
+              if (transferResult.success) {
+                treasureMsg += ` and **${cryptoAmount} ${ticker}**`;
+                console.log(`✅ Transferred ${cryptoAmount} ${ticker} to ${nation.name}'s prize pool`);
+              } else {
+                console.warn(`⚠️ Failed to transfer crypto reward: ${transferResult.error}`);
+                // Don't fail the treasure discovery if crypto transfer fails
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error transferring crypto treasure:", error);
+          // Continue with gold-only reward if crypto fails
+        }
+      }
+
+      treasureMsg += "!";
+      eventMessages.push(treasureMsg);
 
     } else if (roll < 0.1 + discoveryChance && totalCitiesRemaining > 0) {
       // Weighted selection of nation
@@ -164,5 +225,10 @@ export async function execute(interaction) {
   reply += `\n+${EXP_GAIN.SCOUT} Scout EXP (Current: ${player.exp.scout})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
-  await interaction.reply(reply);
+  // Use editReply if we deferred (crypto enabled), otherwise use reply
+  if (cryptoEnabled) {
+    await interaction.editReply(reply);
+  } else {
+    await interaction.reply(reply);
+  }
 }
