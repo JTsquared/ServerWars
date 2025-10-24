@@ -273,16 +273,19 @@ export async function execute(interaction) {
 // compute baseline population threshold (you already set this earlier)
 const baselinePop = Math.max(1, Math.floor(baselinePopRaw)); // avoid division by zero and make an integer
 
-// Public Morale % = current population as percentage of peak population
-// This makes morale decrease cumulatively across multiple attacks
-// peakPopulation is persisted and tracks the highest population this nation has reached
+// Public Morale % = scaled so 100% = peak, 0% = baseline (collapse threshold)
+// This makes morale show how close they are to losing the city
+// Formula: (current - baseline) / (peak - baseline) * 100
 let moralePercent = 0;
-if (targetNation.peakPopulation > 0) {
-  moralePercent = Math.floor((targetNation.population / targetNation.peakPopulation) * 100);
+if (targetNation.peakPopulation > baselinePop) {
+  moralePercent = Math.floor(((targetNation.population - baselinePop) / (targetNation.peakPopulation - baselinePop)) * 100);
+} else {
+  // Edge case: peak is at or below baseline (shouldn't happen normally)
+  moralePercent = targetNation.population > baselinePop ? 100 : 0;
 }
 moralePercent = Math.max(0, Math.min(100, moralePercent));
 
-console.log(`[Morale Debug] currentPop: ${targetNation.population}, peakPop: ${targetNation.peakPopulation}, morale: ${moralePercent}%`);
+console.log(`[Morale Debug] currentPop: ${targetNation.population}, peakPop: ${targetNation.peakPopulation}, baseline: ${baselinePop}, morale: ${moralePercent}%`);
 
 // Military Strength % = current military power vs threshold
 const defenseThreshold = Math.max(1, getNationMilitaryThreshold(targetNation));
