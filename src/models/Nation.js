@@ -6,6 +6,7 @@ const nationSchema = new mongoose.Schema({
   trait: { type: String, enum: ["STEALTHY", "AGRICULTURAL", "INDUSTRIOUS", "MILITARISTIC", "GREGARIOUS", "NOMADIC", "NEGOTIATOR"], default: null },
 
   population: { type: Number, default: 1 },
+  peakPopulation: { type: Number, default: 1 }, // Track highest population reached for morale calculations
 
   resources: {
     food: { type: Number, default: 0 },

@@ -138,6 +138,11 @@ export async function execute(interaction) {
   const attackerLosses = applyMilitaryLosses(nation, attackerLossPower);
   const defenderLosses = applyMilitaryLosses(targetNation, defenderLossPower);
 
+  // Update peak population for morale tracking (if population has grown)
+  if (!targetNation.peakPopulation || targetNation.population > targetNation.peakPopulation) {
+    targetNation.peakPopulation = targetNation.population;
+  }
+
   // Collateral damage (success only)
   let popLoss = 0, foodLoss = 0, goldLooted = 0, cityFallen = false;
   if (outcome === "success") {
@@ -173,6 +178,10 @@ export async function execute(interaction) {
 
     // Decrement target nation's city count
     targetNation.buildings.city = Math.max(0, (targetNation.buildings.city || 1) - 1);
+
+    // Reset peak population when city falls so remaining cities start at 100% morale
+    targetNation.peakPopulation = targetNation.population;
+    console.log(`[City Fall] Resetting peak population to ${targetNation.population} for fresh morale on remaining cities`);
 
     // Crypto transfer when city falls (if enabled)
     const gameConfig = await GameConfig.findOne();
@@ -264,21 +273,16 @@ export async function execute(interaction) {
 // compute baseline population threshold (you already set this earlier)
 const baselinePop = Math.max(1, Math.floor(baselinePopRaw)); // avoid division by zero and make an integer
 
-// IMPORTANT: Calculate maxPop using the ORIGINAL city count from when baselinePopRaw was calculated
-// If we use the current city count, it may have been decremented if a city fell, creating a mismatch
-const originalCityCount = Math.round((baselinePopRaw + (POPULATION_PER_CITY * 0.7)) / POPULATION_PER_CITY);
-const maxPop = POPULATION_PER_CITY * originalCityCount;
-
-// Public Morale % = scales from 100% at max population down to 0% at baseline
-console.log(`[Morale Debug] targetNation.population: ${targetNation.population}, baselinePop: ${baselinePop}, maxPop: ${maxPop}, originalCityCount: ${originalCityCount}, currentCityCount: ${targetNation.buildings.city}`);
+// Public Morale % = current population as percentage of peak population
+// This makes morale decrease cumulatively across multiple attacks
+// peakPopulation is persisted and tracks the highest population this nation has reached
 let moralePercent = 0;
-if (targetNation.population > baselinePop && maxPop > baselinePop) {
-  moralePercent = Math.floor(((targetNation.population - baselinePop) / (maxPop - baselinePop)) * 100);
-} else if (targetNation.population <= baselinePop) {
-  moralePercent = 0;
+if (targetNation.peakPopulation > 0) {
+  moralePercent = Math.floor((targetNation.population / targetNation.peakPopulation) * 100);
 }
 moralePercent = Math.max(0, Math.min(100, moralePercent));
-console.log(`[Morale Debug] Calculated morale: ${moralePercent}%`);
+
+console.log(`[Morale Debug] currentPop: ${targetNation.population}, peakPop: ${targetNation.peakPopulation}, morale: ${moralePercent}%`);
 
 // Military Strength % = current military power vs threshold
 const defenseThreshold = Math.max(1, getNationMilitaryThreshold(targetNation));
