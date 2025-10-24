@@ -264,8 +264,13 @@ export async function execute(interaction) {
 // compute baseline population threshold (you already set this earlier)
 const baselinePop = Math.max(1, Math.floor(baselinePopRaw)); // avoid division by zero and make an integer
 
+// IMPORTANT: Calculate maxPop using the ORIGINAL city count from when baselinePopRaw was calculated
+// If we use the current city count, it may have been decremented if a city fell, creating a mismatch
+const originalCityCount = Math.round((baselinePopRaw + (POPULATION_PER_CITY * 0.7)) / POPULATION_PER_CITY);
+const maxPop = POPULATION_PER_CITY * originalCityCount;
+
 // Public Morale % = scales from 100% at max population down to 0% at baseline
-const maxPop = POPULATION_PER_CITY * (targetNation.buildings.city || 1);
+console.log(`[Morale Debug] targetNation.population: ${targetNation.population}, baselinePop: ${baselinePop}, maxPop: ${maxPop}, originalCityCount: ${originalCityCount}, currentCityCount: ${targetNation.buildings.city}`);
 let moralePercent = 0;
 if (targetNation.population > baselinePop && maxPop > baselinePop) {
   moralePercent = Math.floor(((targetNation.population - baselinePop) / (maxPop - baselinePop)) * 100);
@@ -273,6 +278,7 @@ if (targetNation.population > baselinePop && maxPop > baselinePop) {
   moralePercent = 0;
 }
 moralePercent = Math.max(0, Math.min(100, moralePercent));
+console.log(`[Morale Debug] Calculated morale: ${moralePercent}%`);
 
 // Military Strength % = current military power vs threshold
 const defenseThreshold = Math.max(1, getNationMilitaryThreshold(targetNation));
