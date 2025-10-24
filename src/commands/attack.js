@@ -171,7 +171,8 @@ export async function execute(interaction) {
     nation.resources.gold = (nation.resources.gold || 0) + share;
     targetNation.resources.gold = Math.max(0, (targetNation.resources.gold || 0) - share);
 
-    nation.buildings.city =- 1;
+    // Decrement target nation's city count
+    targetNation.buildings.city = Math.max(0, (targetNation.buildings.city || 1) - 1);
 
     // Crypto transfer when city falls (if enabled)
     const gameConfig = await GameConfig.findOne();
@@ -263,11 +264,12 @@ export async function execute(interaction) {
 // compute baseline population threshold (you already set this earlier)
 const baselinePop = Math.max(1, Math.floor(baselinePopRaw)); // avoid division by zero and make an integer
 
-// Public Morale % = how much buffer above the collapse baseline (as a percent of the baseline)
+// Public Morale % = scales from 100% at max population down to 0% at baseline
+const maxPop = POPULATION_PER_CITY * (targetNation.buildings.city || 1);
 let moralePercent = 0;
-if (targetNation.population > baselinePop) {
-  moralePercent = Math.floor(((targetNation.population - baselinePop) / baselinePop) * 100);
-} else {
+if (targetNation.population > baselinePop && maxPop > baselinePop) {
+  moralePercent = Math.floor(((targetNation.population - baselinePop) / (maxPop - baselinePop)) * 100);
+} else if (targetNation.population <= baselinePop) {
   moralePercent = 0;
 }
 moralePercent = Math.max(0, Math.min(100, moralePercent));

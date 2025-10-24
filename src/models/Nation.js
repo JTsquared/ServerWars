@@ -21,8 +21,6 @@ const nationSchema = new mongoose.Schema({
   },
 
   buildings: {
-    farm: { type: Number, default: 0 },
-    mine: { type: Number, default: 0 },
     barracks: { type: Number, default: 0 },
     oilrig: { type: Number, default: 0 },
     city: { type: Number, default: 1 },

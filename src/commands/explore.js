@@ -99,7 +99,7 @@ export async function execute(interaction) {
       const goldFound = Math.floor(Math.random() * 50) + 10;
       nation.resources.gold = (nation.resources.gold || 0) + goldFound;
 
-      let treasureMsg = `💰 Tile ${i + 1}: You discovered treasure and gained **${goldFound} gold**`;
+      let treasureMsg = `💰 You discovered treasure and gained **${goldFound} gold**`;
 
       // Only try to transfer crypto if it's enabled and rewards aren't exhausted
       if (cryptoEnabled && !gameConfig.treasureRewardsExhausted) {
@@ -204,7 +204,7 @@ export async function execute(interaction) {
 
         await intel.save();
 
-        eventMessages.push(`🏳️ Tile ${i + 1}: You discovered the city of **${randomTile.city.name}** from the nation of **${otherNation.name}**!`);
+        eventMessages.push(`🏳️ Tile ${randomTile.tileId}: You discovered the city of **${randomTile.city.name}** from the nation of **${otherNation.name}**!`);
 
         // Remove from undiscovered so it can't be found again this turn
         undiscoveredCities = undiscoveredCities.filter(t => t.tileId !== randomTile.tileId);
