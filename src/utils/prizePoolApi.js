@@ -156,10 +156,16 @@ export async function transferBetweenPrizePools(appId, fromGuildId, toGuildId, t
     }
 
     const result = await response.json();
+    console.log('[transferBetweenPrizePools] Result:', result);
 
     // Log security rejections
     if (!result.success && (result.error === "FORBIDDEN_EXTERNAL_ACCESS" || result.error === "INVALID_SECRET")) {
       console.error(`🚨 SECURITY ERROR: ${result.error} - Prize pool transfer rejected`);
+    }
+
+    // Log any errors
+    if (!result.success) {
+      console.error(`[transferBetweenPrizePools] Transfer failed:`, result);
     }
 
     return result;

@@ -16,7 +16,7 @@ import {
 } from "../utils/gameUtils.js";
 import { POPULATION_PER_CITY, EXP_GAIN } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
-import { getPrizePoolWallet, transferBetweenPrizePools } from "../utils/prizePoolApi.js";
+import NationRewardClaim from "../models/NationRewardClaim.js";
 
 const MIN_MILITARY_POWER_PER_CITY = parseInt(process.env.MIN_MILITARY_POWER_PER_CITY || "100", 10);
 
@@ -144,7 +144,7 @@ export async function execute(interaction) {
   }
 
   // Collateral damage (success only)
-  let popLoss = 0, foodLoss = 0, goldLooted = 0, cityFallen = false;
+  let popLoss = 0, foodLoss = 0, goldLooted = 0, cityFallen = false, cryptoLooted = null;
   if (outcome === "success") {
     const perCityPop = Math.floor(targetNation.population / Math.max(1, (targetNation.buildings.city || 1)));
     const base = (Math.floor(Math.random() * 3) + 1) * 0.025 * perCityPop;
@@ -179,55 +179,76 @@ export async function execute(interaction) {
     // Decrement target nation's city count
     targetNation.buildings.city = Math.max(0, (targetNation.buildings.city || 1) - 1);
 
-    // Reset peak population when city falls so remaining cities start at 100% morale
-    targetNation.peakPopulation = targetNation.population;
-    console.log(`[City Fall] Resetting peak population to ${targetNation.population} for fresh morale on remaining cities`);
-
-    // Crypto transfer when city falls (if enabled)
+    // Crypto ledger when city falls (if enabled)
     const gameConfig = await GameConfig.findOne();
     const cryptoEnabled = gameConfig?.enableCrypto || false;
+    const currentSeasonId = gameConfig?.currentSeasonId || 1;
 
     if (cryptoEnabled) {
       try {
-        const appId = interaction.client.user.id;
         const ticker = process.env.TREASURE_TOKEN || "AVAX";
 
-        // Get defender's prize pool balance
-        const defenderPoolResult = await getPrizePoolWallet(targetNation.serverId, appId);
-
-        if (defenderPoolResult.success && defenderPoolResult.balances) {
-          // Find the balance for the treasure token
-          const tokenBalance = defenderPoolResult.balances.find(b => b.ticker === ticker);
-
-          if (tokenBalance && parseFloat(tokenBalance.available) > 0) {
-            // Calculate amount to transfer: total balance / number of cities they had BEFORE losing this one
-            const numCitiesBeforeAttack = targetNation.buildings.city || 1;
-            const totalBalance = parseFloat(tokenBalance.available);
-            const cryptoToTransfer = (totalBalance / numCitiesBeforeAttack).toFixed(6);
-
-            console.log(`[Attack] City fallen - transferring ${cryptoToTransfer} ${ticker} from ${targetNation.name} to ${nation.name}`);
-            console.log(`[Attack] Calculation: ${totalBalance} / ${numCitiesBeforeAttack} = ${cryptoToTransfer}`);
-
-            if (parseFloat(cryptoToTransfer) > 0) {
-              const transferResult = await transferBetweenPrizePools(
-                appId,
-                targetNation.serverId, // from (losing nation)
-                nation.serverId,        // to (winning nation)
-                ticker,
-                cryptoToTransfer
-              );
-
-              if (transferResult.success) {
-                console.log(`✅ Crypto transfer successful: ${cryptoToTransfer} ${ticker} - TX: ${transferResult.txHash}`);
-              } else {
-                console.warn(`⚠️ Failed to transfer crypto: ${transferResult.error}`);
-              }
+        // Calculate defender's total rewards earned this season
+        const defenderRewards = await NationRewardClaim.aggregate([
+          {
+            $match: {
+              guildId: targetNation.serverId,
+              seasonId: currentSeasonId,
+              ticker: ticker
             }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: "$amount" }
+            }
+          }
+        ]);
+
+        const totalDefenderRewards = defenderRewards.length > 0 ? defenderRewards[0].total : 0;
+
+        if (totalDefenderRewards > 0) {
+          // Calculate amount to transfer: total rewards / number of cities they had BEFORE losing this one
+          const numCitiesBeforeAttack = targetNation.buildings.city || 1;
+          const cryptoToTransfer = parseFloat((totalDefenderRewards / numCitiesBeforeAttack).toFixed(6));
+
+          console.log(`[Attack] City fallen - transferring ${cryptoToTransfer} ${ticker} from ${targetNation.name} to ${nation.name}`);
+          console.log(`[Attack] Calculation: ${totalDefenderRewards} / ${numCitiesBeforeAttack} = ${cryptoToTransfer}`);
+
+          if (cryptoToTransfer > 0) {
+            // Create negative ledger entry for loser
+            const loserEntry = new NationRewardClaim({
+              guildId: targetNation.serverId,
+              seasonId: currentSeasonId,
+              ticker,
+              amount: -cryptoToTransfer, // Negative amount
+              eventType: "conquest",
+              description: `Lost city to ${nation.name}`,
+              relatedGuildId: nation.serverId,
+              playerId: interaction.user.id
+            });
+
+            // Create positive ledger entry for winner
+            const winnerEntry = new NationRewardClaim({
+              guildId: nation.serverId,
+              seasonId: currentSeasonId,
+              ticker,
+              amount: cryptoToTransfer, // Positive amount
+              eventType: "conquest",
+              description: `Conquered city from ${targetNation.name}`,
+              relatedGuildId: targetNation.serverId,
+              playerId: interaction.user.id
+            });
+
+            await Promise.all([loserEntry.save(), winnerEntry.save()]);
+
+            cryptoLooted = { amount: cryptoToTransfer, ticker };
+            console.log(`✅ Recorded crypto conquest: ${cryptoToTransfer} ${ticker} from ${targetNation.name} to ${nation.name} (ledger)`);
           }
         }
       } catch (error) {
-        console.error("Error transferring crypto on city fall:", error);
-        // Don't fail the attack if crypto transfer fails
+        console.error("Error recording crypto conquest:", error);
+        // Don't fail the attack if ledger fails
       }
     }
 
@@ -315,6 +336,9 @@ const defensePercent = Math.min(moralePercent, powerPercent);
   if (goldLooted > 0) {
     attackerEmbed.fields.push({ name: "Looted gold", value: `💰 ${goldLooted}` });
   }
+  if (cryptoLooted) {
+    attackerEmbed.fields.push({ name: "Crypto looted", value: `💎 ${cryptoLooted.amount} ${cryptoLooted.ticker}` });
+  }
   if (cityFallen) {
     attackerEmbed.fields.push({ name: "City fallen", value: `🏙️ The city has been captured` });
   }
@@ -347,12 +371,23 @@ const defensePercent = Math.min(moralePercent, powerPercent);
       if (goldLooted > 0) {
         defenderEmbed.fields.push({ name: "Looted gold", value: `💰 ${goldLooted}` });
       }
+      if (cryptoLooted) {
+        defenderEmbed.fields.push({ name: "Crypto lost", value: `💎 ${cryptoLooted.amount} ${cryptoLooted.ticker}` });
+      }
 
       if (cityFallen) {
         defenderEmbed.fields.push({ name: "City fallen", value: `❗ The city of **${tile.city.name || tileId}** has fallen.` });
       }
       await notifyChannel.send({ embeds: [defenderEmbed] });
     }
+  }
+
+  // IMPORTANT: Reset peak population AFTER Discord messages are sent
+  // This ensures morale shows correctly as 0% in the city fallen message
+  if (cityFallen) {
+    targetNation.peakPopulation = targetNation.population;
+    await targetNation.save();
+    console.log(`[City Fall] Reset peak population to ${targetNation.population} for fresh morale on remaining cities`);
   }
 
   // done

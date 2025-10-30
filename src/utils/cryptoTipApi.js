@@ -60,7 +60,7 @@ export async function getGlobalWalletBalances(appId, includeZeros = false) {
 }
 
 /**
- * Transfer tokens from global wallet to a recipient
+ * Transfer tokens from global wallet to a recipient wallet address
  * @param {string} appId - Discord application ID
  * @param {string} toAddress - Recipient wallet address
  * @param {string} ticker - Token ticker
@@ -80,6 +80,35 @@ export async function transferFromGlobalWallet(appId, toAddress, ticker, amount)
     return await response.json();
   } catch (error) {
     console.error("Error transferring from global wallet:", error);
+    return { success: false, error: "NETWORK_ERROR", detail: error.message };
+  }
+}
+
+/**
+ * Transfer tokens from global wallet to a Discord user
+ * @param {string} appId - Discord application ID
+ * @param {string} discordUserId - Recipient Discord user ID
+ * @param {string} ticker - Token ticker
+ * @param {string|number} amount - Amount to transfer
+ * @returns {Promise<Object>}
+ */
+export async function transferToDiscordUser(appId, discordUserId, ticker, amount) {
+  try {
+    const response = await fetch(`${CRYPTOTIP_API_URL}/transfer?appId=${appId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        discordUserId,  // Use Discord ID instead of address
+        ticker,
+        amount
+      })
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error transferring to Discord user:", error);
     return { success: false, error: "NETWORK_ERROR", detail: error.message };
   }
 }

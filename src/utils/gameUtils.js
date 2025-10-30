@@ -355,7 +355,10 @@ export function getSafeRewardFraction(gridSize, chance, sigmaMultiplier = 3) {
   const sd = Math.sqrt(n * p * (1 - p));
   const safeMax = mean + sigmaMultiplier * sd;
 
-  return 1 / safeMax;
+  const fraction = 1 / safeMax;
+
+  // Round down to 2 decimal places
+  return Math.floor(fraction * 100) / 100;
 }
 
 // simple shared registry

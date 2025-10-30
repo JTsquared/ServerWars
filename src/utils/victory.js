@@ -7,6 +7,7 @@ import { calcNationPower } from "./gameUtils.js";
 import { channelMap } from "./gameUtils.js";
 import { EmbedBuilder } from "discord.js";
 import { getServerWarsChannel } from "./gameUtils.js";
+import { createSeasonSnapshots, incrementSeasonId } from "./seasonSnapshot.js";
 
 export async function determineWinner(serverId) {
     console.log('Determining winner for server:', serverId);
@@ -142,10 +143,27 @@ export async function checkForGameEnd(client, serverId, intercept = false, inter
 
 async function announceWinner(client, serverId, winner, top3Entries, mode, victoryType, ranking) {
     console.log('Announcing winner for server:', serverId);
+
+    // Create season snapshots FIRST (before announcing)
+    try {
+      const gameConfig = await GameConfig.findOne();
+      const currentSeasonId = gameConfig?.currentSeasonId || 1;
+
+      console.log(`[Victory] Creating season ${currentSeasonId} snapshots...`);
+      await createSeasonSnapshots(currentSeasonId);
+
+      // Increment season for next game
+      await incrementSeasonId();
+      console.log(`[Victory] Season snapshots created and season incremented`);
+    } catch (error) {
+      console.error("[Victory] Failed to create season snapshots:", error);
+      // Continue with announcement even if snapshot fails
+    }
+
     const channelId = channelMap.get(serverId);
     console.log('Announcement channel ID:', channelId);
     if (!channelId) return;
-  
+
     const victoryDesc = {
       conquest: "Total Conquest",
       power: "Strongest Military",
@@ -153,7 +171,7 @@ async function announceWinner(client, serverId, winner, top3Entries, mode, victo
       gold: "Wealth (Gold)",
       lastNationStanding: "Last Nation Standing"
     }[victoryType] || "by Victory";
-  
+
     const channel = await client.channels.fetch(channelId);
   
     const fmt = n => (typeof n === "number" ? n.toLocaleString() : (n || "0"));
@@ -194,11 +212,21 @@ async function announceWinner(client, serverId, winner, top3Entries, mode, victo
         `**Game Mode:** ${mode}\n**Victory Type:** ${victoryDesc}\n\n${detailLines}`
       )
       .setColor("Gold");
-  
+
     if (winner) {
       embed.addFields({ name: "Champion", value: `🥇 **${winner.name}**`, inline: true });
     }
-  
+
+    // Add claim rewards message
+    const gameConfig = await GameConfig.findOne();
+    const seasonId = (gameConfig?.currentSeasonId || 1) - 1; // Previous season (we already incremented)
+
+    embed.addFields({
+      name: "💎 Claim Your Rewards",
+      value: `Players can now claim their share of season rewards!\nUse \`/claimrewards season:${seasonId}\` to claim your portion based on your EXP contribution.`,
+      inline: false
+    });
+
     await channel.send({ embeds: [embed] });
   }
 

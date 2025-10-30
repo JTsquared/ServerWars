@@ -17,6 +17,7 @@ const configSchema = new mongoose.Schema({
     },
     enableCrypto: { type: Boolean, default: false },
     treasureRewardsExhausted: { type: Boolean, default: false },
+    currentSeasonId: { type: Number, default: 1 }, // Track current season for reward claims
 }, { timestamps: true });
 
 const GameConfig = mongoose.models.GameConfig || mongoose.model("GameConfig", configSchema);

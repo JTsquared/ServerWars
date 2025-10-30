@@ -13,8 +13,7 @@ import {
 import { EXP_GAIN, WORLD_TILES, NATION_TRAITS } from "../utils/constants.js";
 import Intel from "../models/Intel.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
-import { transferTreasureReward } from "../utils/prizePoolApi.js";
-import { getGlobalWalletBalance } from "../utils/cryptoTipApi.js";
+import NationRewardClaim from "../models/NationRewardClaim.js";
 
 const SCOUT_EXP_GAIN = 15;
 
@@ -37,17 +36,13 @@ export async function execute(interaction) {
   // Check if crypto is enabled
   const gameConfig = await GameConfig.findOne();
   const cryptoEnabled = gameConfig?.enableCrypto || false;
+  const currentSeasonId = gameConfig?.currentSeasonId || 1;
 
   if (!canUseResourceCommand(player)) {
     return interaction.reply({
       content: "⏳ You must wait before using another resource command.",
       ephemeral: true,
     });
-  }
-
-  // IMPORTANT: Defer reply early if crypto is enabled (blockchain transactions take time)
-  if (cryptoEnabled) {
-    await interaction.deferReply();
   }
 
   // Increment discovered tiles
@@ -101,47 +96,37 @@ export async function execute(interaction) {
 
       let treasureMsg = `💰 You discovered treasure and gained **${goldFound} gold**`;
 
-      // Only try to transfer crypto if it's enabled and rewards aren't exhausted
+      // Track crypto rewards in ledger (no immediate transfer)
       if (cryptoEnabled && !gameConfig.treasureRewardsExhausted) {
         try {
-          const appId = interaction.client.user.id;
           const ticker = process.env.TREASURE_TOKEN || "AVAX";
           const seasonRewardTotal = parseFloat(process.env.SEASON_REWARD_TOTAL || "0.1");
 
-          // Check global wallet balance to see if we have enough rewards left
-          const balanceResult = await getGlobalWalletBalance(appId, ticker);
+          // Calculate reward amount using same formula as before
+          const treasureChance = 0.1; // 10% chance per tile
+          const rewardFraction = getSafeRewardFraction(WORLD_TILES, treasureChance);
+          const cryptoAmount = parseFloat((seasonRewardTotal * rewardFraction).toFixed(6));
 
-          if (balanceResult.success && parseFloat(balanceResult.balance) < seasonRewardTotal) {
-            // Reward pool exhausted - set flag to prevent future API calls
-            gameConfig.treasureRewardsExhausted = true;
-            await gameConfig.save();
-            console.log(`⚠️ Treasure rewards exhausted (${balanceResult.balance} ${ticker} < ${seasonRewardTotal} ${ticker})`);
-          } else if (balanceResult.success) {
-            // We have enough balance, proceed with transfer
-            const treasureChance = 0.1; // 10% chance per tile
-            const rewardFraction = getSafeRewardFraction(WORLD_TILES, treasureChance);
-            const cryptoAmount = (seasonRewardTotal * rewardFraction).toFixed(6);
+          if (cryptoAmount > 0) {
+            // Create ledger entry (no transfer yet)
+            const rewardClaim = new NationRewardClaim({
+              guildId: interaction.guild.id,
+              seasonId: currentSeasonId,
+              ticker,
+              amount: cryptoAmount,
+              eventType: "treasure",
+              description: `Treasure found during exploration`,
+              playerId: interaction.user.id
+            });
 
-            if (parseFloat(cryptoAmount) > 0) {
-              const transferResult = await transferTreasureReward(
-                appId,
-                interaction.guild.id,
-                ticker,
-                cryptoAmount
-              );
+            await rewardClaim.save();
 
-              if (transferResult.success) {
-                treasureMsg += ` and **${cryptoAmount} ${ticker}**`;
-                console.log(`✅ Transferred ${cryptoAmount} ${ticker} to ${nation.name}'s prize pool`);
-              } else {
-                console.warn(`⚠️ Failed to transfer crypto reward: ${transferResult.error}`);
-                // Don't fail the treasure discovery if crypto transfer fails
-              }
-            }
+            treasureMsg += ` and **${cryptoAmount} ${ticker}**`;
+            console.log(`✅ Recorded ${cryptoAmount} ${ticker} reward for ${nation.name} (ledger)`);
           }
         } catch (error) {
-          console.error("Error transferring crypto treasure:", error);
-          // Continue with gold-only reward if crypto fails
+          console.error("Error recording crypto treasure reward:", error);
+          // Continue with gold-only reward if ledger fails
         }
       }
 
@@ -225,10 +210,5 @@ export async function execute(interaction) {
   reply += `\n+${EXP_GAIN.SCOUT} Scout EXP (Current: ${player.exp.scout})`;
   if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
-  // Use editReply if we deferred (crypto enabled), otherwise use reply
-  if (cryptoEnabled) {
-    await interaction.editReply(reply);
-  } else {
-    await interaction.reply(reply);
-  }
+  await interaction.reply(reply);
 }
