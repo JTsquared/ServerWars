@@ -166,18 +166,21 @@ export async function execute(interaction) {
   if (targetNation.population <= baselinePopRaw || calcNationPower(targetNation) <= 0) {
     cityFallen = true;
 
+    // Capture city count BEFORE decrementing (for crypto calculation later)
+    const numCitiesBeforeAttack = targetNation.buildings.city || 1;
+
     // Remove city from tile
     tile.city = { exists: false };
     await tile.save();
 
     // Loot gold (40% of target gold divided by their remaining cities)
-    const share = Math.floor((targetNation.resources.gold || 0) / Math.max(1, (targetNation.buildings.city || 1)));
+    const share = Math.floor((targetNation.resources.gold || 0) / Math.max(1, numCitiesBeforeAttack));
     goldLooted = share;
     nation.resources.gold = (nation.resources.gold || 0) + share;
     targetNation.resources.gold = Math.max(0, (targetNation.resources.gold || 0) - share);
 
     // Decrement target nation's city count
-    targetNation.buildings.city = Math.max(0, (targetNation.buildings.city || 1) - 1);
+    targetNation.buildings.city = Math.max(0, numCitiesBeforeAttack - 1);
 
     // Crypto ledger when city falls (if enabled)
     const gameConfig = await GameConfig.findOne();
@@ -209,8 +212,9 @@ export async function execute(interaction) {
 
         if (totalDefenderRewards > 0) {
           // Calculate amount to transfer: total rewards / number of cities they had BEFORE losing this one
-          const numCitiesBeforeAttack = targetNation.buildings.city || 1;
-          const cryptoToTransfer = parseFloat((totalDefenderRewards / numCitiesBeforeAttack).toFixed(6));
+          // (numCitiesBeforeAttack was captured at line 170, before decrementing)
+          // Round down to 2 decimal places
+          const cryptoToTransfer = Math.floor((totalDefenderRewards / numCitiesBeforeAttack) * 100) / 100;
 
           console.log(`[Attack] City fallen - transferring ${cryptoToTransfer} ${ticker} from ${targetNation.name} to ${nation.name}`);
           console.log(`[Attack] Calculation: ${totalDefenderRewards} / ${numCitiesBeforeAttack} = ${cryptoToTransfer}`);

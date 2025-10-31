@@ -14,6 +14,7 @@ import {
 } from "../utils/gameUtils.js";
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
+import { getBoostMultiplier } from "../utils/boostUtils.js";
 
 export const data = new SlashCommandBuilder()
   .setName("drill")
@@ -42,6 +43,12 @@ export async function execute(interaction) {
     oilYield = Math.floor(oilYield * (1 + NATION_TRAITS.INDUSTRIOUS.oilProductionBonus));
   }
 
+  // Apply production boost if active
+  const boostMultiplier = getBoostMultiplier(nation, "oil");
+  if (boostMultiplier > 1) {
+    oilYield = Math.floor(oilYield * boostMultiplier);
+  }
+
   nation.resources.oil = (nation.resources.oil || 0) + oilYield;
 
   setResourceCooldown(player);
@@ -50,6 +57,11 @@ export async function execute(interaction) {
 
   let reply = `⛏️ You drilled **${oilYield} oil** for your nation! (Total: ${nation.resources.oil})\n` +
               `+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
+
+              if (boostMultiplier > 1) {
+                reply += `\n⚡ **${boostMultiplier}x Oil Production Boost Active!**`;
+              }
+
               if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
   await interaction.reply(reply);

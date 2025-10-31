@@ -72,6 +72,14 @@ const nationSchema = new mongoose.Schema({
     bankDisabledUntil: { type: Date, default: null }
   },
 
+  // Production boosts (purchased with crypto)
+  boosts: {
+    food: { endTime: { type: Date, default: null }, multiplier: { type: Number, default: 1 } },
+    steel: { endTime: { type: Date, default: null }, multiplier: { type: Number, default: 1 } },
+    oil: { endTime: { type: Date, default: null }, multiplier: { type: Number, default: 1 } },
+    gold: { endTime: { type: Date, default: null }, multiplier: { type: Number, default: 1 } }
+  },
+
   playerCount: { type: Number, default: 0 }
 }, { timestamps: true });
 

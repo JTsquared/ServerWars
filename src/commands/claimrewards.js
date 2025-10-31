@@ -82,10 +82,10 @@ export async function execute(interaction) {
         continue;
       }
 
-      // Calculate player's share amount
-      const playerAmount = (totalNationReward * playerShare).toFixed(6);
+      // Calculate player's share amount (round down to 2 decimal places)
+      const playerAmount = Math.floor((totalNationReward * playerShare) * 100) / 100;
 
-      if (parseFloat(playerAmount) <= 0) {
+      if (playerAmount <= 0) {
         continue;
       }
 

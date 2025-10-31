@@ -38,6 +38,10 @@ export async function execute(interaction) {
   const cryptoEnabled = gameConfig?.enableCrypto || false;
   const currentSeasonId = gameConfig?.currentSeasonId || 1;
 
+  console.log(`[Explore] Crypto enabled: ${cryptoEnabled}`);
+  console.log(`[Explore] Treasure rewards exhausted: ${gameConfig?.treasureRewardsExhausted}`);
+  console.log(`[Explore] Current season ID: ${currentSeasonId}`);
+
   if (!canUseResourceCommand(player)) {
     return interaction.reply({
       content: "⏳ You must wait before using another resource command.",
@@ -88,26 +92,36 @@ export async function execute(interaction) {
     }
 
     const roll = Math.random();
+    console.log(`[Explore] Tile ${i + 1}: Roll = ${roll.toFixed(4)}, Treasure threshold = 0.1`);
 
     if (roll < 0.1) {
       // Treasure event - give gold (+ crypto if enabled)
+      console.log(`[Explore] 💰 TREASURE EVENT TRIGGERED!`);
       const goldFound = Math.floor(Math.random() * 50) + 10;
       nation.resources.gold = (nation.resources.gold || 0) + goldFound;
 
       let treasureMsg = `💰 You discovered treasure and gained **${goldFound} gold**`;
 
       // Track crypto rewards in ledger (no immediate transfer)
+      console.log(`[Explore] Checking crypto: enabled=${cryptoEnabled}, exhausted=${gameConfig?.treasureRewardsExhausted}`);
       if (cryptoEnabled && !gameConfig.treasureRewardsExhausted) {
+        console.log(`[Explore] ✅ Crypto reward code path entered!`);
         try {
           const ticker = process.env.TREASURE_TOKEN || "AVAX";
           const seasonRewardTotal = parseFloat(process.env.SEASON_REWARD_TOTAL || "0.1");
+          console.log(`[Explore] Ticker: ${ticker}, Season reward total: ${seasonRewardTotal}`);
 
           // Calculate reward amount using same formula as before
           const treasureChance = 0.1; // 10% chance per tile
           const rewardFraction = getSafeRewardFraction(WORLD_TILES, treasureChance);
-          const cryptoAmount = parseFloat((seasonRewardTotal * rewardFraction).toFixed(6));
+          console.log(`[Explore] Reward fraction: ${rewardFraction} (WORLD_TILES=${WORLD_TILES})`);
+
+          // Round down to 2 decimal places
+          const cryptoAmount = Math.floor(seasonRewardTotal * rewardFraction * 100) / 100;
+          console.log(`[Explore] Calculated crypto amount: ${cryptoAmount}`);
 
           if (cryptoAmount > 0) {
+            console.log(`[Explore] Creating NationRewardClaim entry...`);
             // Create ledger entry (no transfer yet)
             const rewardClaim = new NationRewardClaim({
               guildId: interaction.guild.id,
@@ -120,14 +134,19 @@ export async function execute(interaction) {
             });
 
             await rewardClaim.save();
+            console.log(`[Explore] ✅ NationRewardClaim saved to database!`);
 
             treasureMsg += ` and **${cryptoAmount} ${ticker}**`;
             console.log(`✅ Recorded ${cryptoAmount} ${ticker} reward for ${nation.name} (ledger)`);
+          } else {
+            console.log(`[Explore] ⚠️ Crypto amount is 0 or negative, skipping ledger entry`);
           }
         } catch (error) {
-          console.error("Error recording crypto treasure reward:", error);
+          console.error("[Explore] ❌ Error recording crypto treasure reward:", error);
           // Continue with gold-only reward if ledger fails
         }
+      } else {
+        console.log(`[Explore] ❌ Skipping crypto reward: cryptoEnabled=${cryptoEnabled}, treasureRewardsExhausted=${gameConfig?.treasureRewardsExhausted}`);
       }
 
       treasureMsg += "!";

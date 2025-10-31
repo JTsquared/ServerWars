@@ -15,6 +15,7 @@ import {
 } from "../utils/gameUtils.js";
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
+import { getBoostMultiplier } from "../utils/boostUtils.js";
 
 export const data = new SlashCommandBuilder()
   .setName("mine")
@@ -41,11 +42,22 @@ export async function execute(interaction) {
 
   const ownedTiles = await Tile.find({ "city.exists": true, "city.owner": nation.serverId });
   let steelYield = getResourceYield(player.exp.economist, economistTiers, nation, "steel", ownedTiles);
-  const goldYield = getResourceYield(player.exp.economist, economistTiers, nation, "gold", ownedTiles);
+  let goldYield = getResourceYield(player.exp.economist, economistTiers, nation, "gold", ownedTiles);
 
   // INDUSTRIOUS trait: steel production bonus
   if (nation.trait === "INDUSTRIOUS") {
     steelYield = Math.floor(steelYield * (1 + NATION_TRAITS.INDUSTRIOUS.steelProductionBonus));
+  }
+
+  // Apply production boosts if active
+  const steelBoostMultiplier = getBoostMultiplier(nation, "steel");
+  if (steelBoostMultiplier > 1) {
+    steelYield = Math.floor(steelYield * steelBoostMultiplier);
+  }
+
+  const goldBoostMultiplier = getBoostMultiplier(nation, "gold");
+  if (goldBoostMultiplier > 1) {
+    goldYield = Math.floor(goldYield * goldBoostMultiplier);
   }
 
   nation.resources.steel = (nation.resources.steel ?? 0) + steelYield;
@@ -60,6 +72,15 @@ export async function execute(interaction) {
     `⛏️ You mined **${steelYield} steel** and **${goldYield} gold** for your nation!` +
     `\n📦 Totals → Steel: ${nation.resources.steel}, Gold: ${nation.resources.gold}` +
     `\n+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
+
+    if (steelBoostMultiplier > 1) {
+      reply += `\n⚡ **${steelBoostMultiplier}x Steel Production Boost Active!**`;
+    }
+
+    if (goldBoostMultiplier > 1) {
+      reply += `\n⚡ **${goldBoostMultiplier}x Gold Production Boost Active!**`;
+    }
+
     if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
   await interaction.reply(reply);

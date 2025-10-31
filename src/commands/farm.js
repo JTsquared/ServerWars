@@ -13,6 +13,7 @@ import {
 import { economistTiers, militaryTiers, scoutTiers, diplomatTiers } from "../data/tiers.js";
 import { EXP_GAIN, NATION_TRAITS } from "../utils/constants.js";
 import { checkWorldEvents } from "../utils/worldEvents.js";
+import { getBoostMultiplier } from "../utils/boostUtils.js";
 
 const ECONOMIST_EXP_GAIN = 15;
 
@@ -60,6 +61,12 @@ export async function execute(interaction) {
     foodYield = Math.floor(foodYield * (1 + NATION_TRAITS.AGRICULTURAL.foodProductionBonus));
   }
 
+  // Apply production boost if active
+  const boostMultiplier = getBoostMultiplier(nation, "food");
+  if (boostMultiplier > 1) {
+    foodYield = Math.floor(foodYield * boostMultiplier);
+  }
+
   let popIncrease = Math.ceil(foodYield);
 
   // GREGARIOUS trait: population growth bonus when farming
@@ -80,6 +87,11 @@ export async function execute(interaction) {
     `🌾 You harvested **${foodYield} food** for your nation! (Total: ${nation.resources.food})\n` +
     `👥 Population +${popIncrease} → **${nation.population}**\n` +
     `+${EXP_GAIN.ECONOMIST} Economist EXP (Current: ${player.exp.economist})`;
+
+    if (boostMultiplier > 1) {
+      reply += `\n⚡ **${boostMultiplier}x Production Boost Active!**`;
+    }
+
     if (rankUpMsg) reply += `\n${rankUpMsg}`;
 
   await interaction.reply(reply);
